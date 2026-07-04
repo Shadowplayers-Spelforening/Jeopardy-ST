@@ -1,0 +1,53 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<title>Jeopardy ST</title>
+		<meta name="description" content="Jeopardy ST game page." />
+		<link rel="icon" href="favicon.ico" />
+		<link rel="stylesheet" href="style.css" />
+	</head>
+	<body>
+		<div id="wrap">
+			<div id="bg"></div>
+			<div id="content">
+				<div id="board">
+					<div id="boardName"></div>
+					<div id="categories"></div>
+				</div>
+				<div id="teams"></div>
+				<div id="question"></div>
+				<div id="titleWrap">
+					<div id="title" contenteditable></div> - 
+					<div id="gameState"></div>
+				</div>
+			</div>
+			<div id="status" class="editMode"></div>
+			<div id="modal" class="hidden">
+				<div id="modalContent">Hello, this is modal content.</div>
+			</div>
+			<div id="menu">
+				<span>Menu</span>
+				<div class="button" data-id="resetGame">Reset Game</div>
+				<div class="button" data-id="connectHub">Connect Hub</div>
+				<div class="button" data-id="switchBoard">Next Board</div>
+				<div class="button editMode" data-id="editFinalQuestion">Edit Final Question</div>
+				<div class="button notEditMode" data-id="enableEdit">Switch To Edit Mode</div>
+				<div class="button editMode" data-id="disableEdit">Switch To Game Mode</div>
+				<div class="button editMode" data-id="categoryBrowser">Category Browser</div>
+				<div class="button editMode" data-id="gameBrowser">Game Browser</div>
+			</div>
+		</div>
+		<script type="module">
+			import Game from "./modules/Game.js";
+
+			(async () => {
+				await Game.begin();
+				window.Game = Game;
+			})();
+
+		</script>
+	</body>
+</html>

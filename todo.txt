@@ -1,0 +1,24 @@
+[Viewer]
+- Show question and answer
+- Bet mode
+- 
+
+[Editor]
+- Click menu and have an option to enter edit mode
+- Edit mode toggles elements of class "editor", and prevents timers
+Things to edit:
+	- Question
+	- Answer
+	- Switch between boards
+	- Final question
+	- Add or remove categories
+	- Category browser (list of categories saved locally)
+	- Add or remove questions
+	- Categories should be stored in its own DB
+	- Nr of daily doubles
+	- Rename board
+	- Rename players
+	- Modify score
+
+Later:
+- Configure time to answer

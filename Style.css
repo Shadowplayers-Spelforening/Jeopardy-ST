@@ -1,0 +1,207 @@
+body{
+	padding:0; margin:0;
+	font-size:2vmin;
+	font-family: Arial, Helvetica, sans-serif;
+}
+
+*.hidden{ display:none !important; }
+
+#bg{
+	background: linear-gradient(to bottom,  #565656 0%,#494949 44%,#373737 100%);
+}
+#wrap.editMode #bg{
+	background: linear-gradient(to bottom,  #676756 0%,#606049 44%,#484837 100%);
+}
+
+#bg, #content{
+	position: fixed;
+	top:0; left:0; right:0; bottom:0;
+	overflow: hidden;
+}
+
+#wrap:not(.editMode) *.editMode{ display:none !important; }
+#wrap.editMode *.notEditMode{ display:none !important; }
+
+
+#modal{
+	display:flex;
+	position: fixed;
+	top:0; left:0; right:0; bottom:0;
+	justify-content: center;
+	align-items: center;
+	background: rgba(0,0,0,0.5);
+	color:#FFF;
+	text-align: center;
+	z-index:100;
+}
+#modalContent{
+	color: #333;
+	background: rgba(255,255,255,0.75);
+	border: 0.5vmin solid #EEE;
+	border-radius: 1vmin;
+	padding:3vmin;
+	min-width: 50%;
+}
+#modalContent form{
+	display:block;
+}
+input{
+	font-size:3vmin;
+}
+input[type=number]{
+	max-width:5vmin;
+}
+textarea{
+	display:block;
+	width:100%;
+	font-size:2vmin;
+}
+
+form{
+	margin: 2vmin 0
+}
+
+#menu{
+	position: fixed;
+	top:0; left:50%;
+	transform:translateX(-50%);
+	background: rgba(0,0,0,0.25);
+	color:#FFF;
+	min-width:30vmin;
+	text-align: center;
+	border-bottom-left-radius: 1vmin;
+	border-bottom-right-radius: 1vmin;
+	color:#AAA;
+	overflow:hidden;
+}
+#menu > div.button{ display:none; color:#FFF; background:rgba(0,0,0,0.5); margin-bottom:0.1vmin; cursor:pointer; }
+#menu:hover:not(.off) > div.button{ display:block; }
+#menu:hover > div.button:hover{ background:rgba(255,255,255,0.25); }
+
+#teams{
+	position:fixed;
+	bottom:0;
+	left:50%;
+	transform:translateX(-50%);
+	display:grid;
+	grid-template-columns: repeat(5, 1fr);
+}
+#teams > div{
+	margin:0 1vmin;
+	text-align: center;
+	padding:2vmin;
+	border: 0.5vmin solid #EEE;
+	border-top-left-radius: 2vmin;
+	border-top-right-radius: 2vmin;
+	border-bottom:none;
+}
+#teams > div.RED{ border-color:#FFAAAA; color:#FFAAAA; background-color:#663333; }
+#teams > div.YELLOW{ border-color:#FFFFAA; color:#FFFFAA; background-color:#666633; }
+#teams > div.GREEN{ border-color:#AAFFAA; color:#AAFFAA; background-color:#336633; }
+#teams > div.BLUE{ border-color:#AAAAFF; color:#AAAAFF; background-color:#333366; }
+#teams > div.WHITE{ border-color:#FFFFFF; color:#FFFFFF; background-color:#666666; }
+#teams > div > div.name{ font-style: italic; }
+#teams > div > div.score{ font-weight: bold; }
+
+
+
+table.listing{
+	width:100%;
+}
+table.listing td{
+	background-color: rgba(0,0,0,.5);
+	color: #FFF;
+	text-align: left;
+	padding: 0.5vmin;
+}
+table.listing td.name{
+	cursor:pointer;
+	font-weight: bold;
+}
+table.listing td.name:hover{
+	background-color: rgba(0,0,0,.75);
+}
+table.listing tr:nth-child(2n) td{
+	background-color: rgba(0,0,0,.25);
+}
+table.listing tr.active{
+	opacity: 0.5;
+}
+
+
+#status{
+	position:fixed;
+	bottom:0;
+	left:0;
+	color:#FAA;
+	text-shadow: 0.1vmin 0.1vmin 0.5vmin #000;
+	font-weight: bold;
+}
+
+
+/* Game content */
+#titleWrap{
+	position:fixed;
+	top:0; left: 1vmin;
+	color:#FFF;
+	font-weight: bold;
+	text-shadow: 0.1vmin 0.1vmin 0.5vmin #000;
+}
+#titleWrap > div{
+	display:inline-block;
+}
+
+
+#board{
+	display:flex;
+	justify-content: center;
+	text-align: center;
+	position:fixed;
+	top:0; left:0; right:0; bottom:0;
+	min-width:80%;
+	color: #EEE;
+}
+#categories{
+	display:flex;
+	margin-top:5vmin;
+}
+#categories > div.category > div.title{
+	background:#567;
+	font-style: italic;
+	font-size:2.5vmin;
+}
+#categories > div.category > div{
+	width: 13vmin;
+	height:13vmin;
+	background: #345;
+	display:flex;
+	justify-content: center;
+	align-items: center;
+	margin:0.5vmin;
+	border-radius: 1vmin;
+	box-shadow: .5vmin .5vmin 1vmin rgba(0,0,0,.25);
+	border:0.25vmin solid #345;
+	color: #DEF;
+}
+#categories > div.category > div.question{
+	font-size:3vmin;
+	cursor:pointer;
+}
+#wrap:not(.editMode) #categories > div.category > div.question:not(.answered){
+	background: linear-gradient(to bottom,  #797 0%,#343 100%);
+	border-color: #797;
+	color: #DFD;
+	font-weight: bold;
+}
+#wrap.editMode #categories > div.category > div.question:not(.valid){
+	background: linear-gradient(to bottom,  #977 0%,#433 100%);
+	border-color: #977;
+	color: #FDD;
+	font-weight: bold;
+}
+#categories > div.category > div.question:not(.answered):hover{
+	transform:scale(1.05);
+}
+
+
+
