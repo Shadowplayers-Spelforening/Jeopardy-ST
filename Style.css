@@ -62,12 +62,13 @@ div{
 	pointer-events: none;
 }
 #questionContent{
-	font-size:8vmin;
+	min-width:auto;
+	font-size:10vmin;
 	font-weight: bold;
 	text-transform: uppercase;
 	color: #FFF;
 	background: linear-gradient(to bottom,  #777 0%,#444 100%);
-	width:50vmin; height: 50vmin;
+	width:75vmin; height: 75vmin;
 	overflow:visible;
 	display:flex;
 	justify-content: center;
@@ -129,6 +130,15 @@ div{
 	text-align: center;
 }
 
+
+#controls{
+	position:fixed;
+	top:0; right:1vmin;
+	color:#AAA;
+}
+#controls ul{
+	margin:0;
+}
 
 
 input{

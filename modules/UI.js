@@ -23,6 +23,7 @@ export default class UI{
 	modal = document.getElementById('modal');
 	modalContent = document.getElementById('modalContent');
 	status = document.getElementById('status');
+	controls = document.querySelector('#controls > ul');
 
 	constructor(){
 
@@ -44,6 +45,12 @@ export default class UI{
 		this.questionContent.addEventListener('click', event => {
 			event.stopImmediatePropagation();
 
+		});
+
+		window.addEventListener('keydown', (event) => {
+			if( this.game.onKeyPress(event.key) ){
+				event.preventDefault();
+			}
 		});
 
 	}
@@ -810,15 +817,17 @@ export default class UI{
 	setQuestionTimeLeft( timeLeft, max = 6 ){
 
 		// First make sure we have enough divs
-		for( let i = this.questionTimer.childNodes.length; i < max; ++i ){
+		for( let i = this.questionTimer.children.length; i < max; ++i ){
 			this.questionTimer.append(document.createElement('div'));
 		}
+
 		// Hide if we have too many
-		for( let i = max; i < this.questionTimer.childNodes.length; ++i ){
-			this.questionTimer.childNodes[i].classList.toggle('hidden', true);
+		for( let i = max; i < this.questionTimer.children.length; ++i ){
+			this.questionTimer.children[i].classList.toggle('hidden', true);
 		}
+		
 		for( let i = 0; i < max; ++i ){
-			this.questionTimer.childNodes[i].classList.toggle('disabled', i >= timeLeft);
+			this.questionTimer.children[i].classList.toggle('disabled', i+1 > timeLeft);
 		}
 
 
@@ -837,6 +846,20 @@ export default class UI{
 			this.questionTeam.innerText = team.name;
 			this.questionContent.classList.add(team.getColorLabel());
 		}
+
+	}
+
+
+	setControls(...controls){
+
+		console.log("Setting controls", controls);
+		let elements = [];
+		for( let i = 0; i < controls.length; ++i ){
+			const li = document.createElement('li');
+			li.innerText = controls[i];
+			elements.push(li);
+		}
+		this.controls.replaceChildren(...elements);
 
 	}
 

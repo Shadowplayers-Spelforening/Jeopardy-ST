@@ -170,7 +170,6 @@ export default class Game extends Autoloader{
 	answerTime = 6;						// Seconds to answer
 	questionTime = 30;					// Seconds per question to answer
 	activeBoard = 0;
-	
 	stage = Game.Stage.Board;
 
 	#saveTimer = null;
@@ -182,6 +181,7 @@ export default class Game extends Autoloader{
 	#answerInterval = null;				// Starts when a question is presented
 	#answeringTeam = -1;				// Team that buzzed in (-1 = none) Use getAnsweringTeam()
 	#questionType = Question.Type.Regular;
+	#activateBuzzersTimeout = null;		// Time before activating buzzers
 
 	teams = [
 		new Team({color:Constants.BUTTON_COLOR.RED}),
@@ -230,6 +230,7 @@ export default class Game extends Autoloader{
 		const promises = this.boards.map(b => b.loadCategories());
 		await Promise.all(promises);
 		this.draw(true);
+		this.setStage(this.stage, true);
 
 	}
 
@@ -240,6 +241,50 @@ export default class Game extends Autoloader{
 	resetIfNotStarted(){
 		if( !this.isStarted() )
 			this.reset();
+	}
+
+
+	setStage( stage, force = false ){
+
+		if( stage === this.stage && !force )
+			return;
+
+		this.stage = stage;
+		if( stage === Game.Stage.Board ){
+
+			this.disableAllBuzzers().catch(e => {if( !force ){console.error(e);}});
+			this.setActiveQuestion(false);
+			
+		}
+
+	}
+
+
+	// return true if we captured it
+	onKeyPress( key ){
+
+		if( this.stage === Game.Stage.Question ){
+			
+			// Question has been answered
+			if( !this.#activeQuestion ){
+
+				if( key === 'Enter' )
+					this.setStage(Game.Stage.Board); // Emulate clicking outside of overlay
+
+			}
+			else if( key === 'Enter' ){
+				this.onAnswerCorrect();
+				return true;
+			}
+			else if( key === 'Backspace' ){
+				this.onAnswerIncorrect();
+				return true;
+			}
+
+		}
+
+		
+		return false;
 	}
 
 
@@ -261,6 +306,7 @@ export default class Game extends Autoloader{
 		if( team.connected )
 			team.active = true;
 		this.draw();
+		Game.Serial.taskToggleButton(team.color, team.buzzerEnabled);
 
 	}
 	onRemoteButton( teamColor ){
@@ -269,7 +315,14 @@ export default class Game extends Autoloader{
 		if( !teamColor )
 			return;
 
-		console.log("Got button press from", team);
+		if( this.stage === Game.Stage.Question ){
+
+			if( !this.getAnsweringTeam() ){
+				this.setAnsweringTeam(team);
+			}
+
+		}
+		
 
 	}
 	onRemoteText( teamColor, text ){
@@ -295,30 +348,69 @@ export default class Game extends Autoloader{
 
 	// Cancel question
 	onQuestionOverlayBackgroundClicked(){
-		this.#activeQuestion = '';
-		Game.ui.toggleQuestion(false);
 		this.stopAnswerInterval();
+		this.setStage(Game.Stage.Board);
 	}
 
 	// Time for buzzing in has ended
 	onQuestionTimedOut(){
+
 		this.stopAnswerInterval();
-		console.log("Question timed out");
+		this.setActiveQuestionCompleted();
+
 	}
 
-	// Time for a team buzzing in to answer has ended
+	// Time for the active team to answer has ended
 	// Host has to decide whether they answered correct or not
 	onAnswerTimedOut(){
 		this.stopAnswerInterval();
-		this.setActiveQuestionCompleted();
+		console.log("Player answer timed out. Still have to wait for judge tho.");
 	}
 
 	onAnswerCorrect(){
-		console.log("Answer correct");
+		
+		this.stopAnswerInterval();
+		const question = this.getActiveQuestion();
+		const team = this.getAnsweringTeam();
+		if( !question || !team )
+			return;
+
+		team.score += question._value;
+		this.onTeamScoreChanged(team);
+		this.setActiveQuestionCompleted();
+		Game.ui.toggleQuestionActive(team);	// Colorizes the answer so we know who got the right answer
+
 	}
 
 	onAnswerIncorrect(){
-		console.log("Anwer incorrect");
+		
+		const question = this.getActiveQuestion();
+		const team = this.getAnsweringTeam();
+		if( !question || !team )
+			return;
+		team.buzzerEnabled = false;
+		team.score -= question._value;
+		this.onTeamScoreChanged(team);
+
+		this.setAnsweringTeam(false);
+
+		// There are teams left
+		const remainingTeams = this.getTeamsThatCanAnswer();
+		if( remainingTeams.length ){
+
+			this.startAnswerInterval();
+			Game.ui.toggleQuestionActive(false);
+			this.updateBuzzers();
+
+		}
+		// No teams left
+		else
+			this.onQuestionTimedOut();
+
+	}
+
+	onTeamScoreChanged( team ){
+
 	}
 
 
@@ -338,6 +430,7 @@ export default class Game extends Autoloader{
 	onDeactivate(){
 		clearTimeout(this.#saveTimer);
 		clearInterval(this.#answerInterval);
+		clearTimeout(this.#activateBuzzersTimeout);
 	}
 
 	getTeamByColor( color ){
@@ -426,7 +519,6 @@ export default class Game extends Autoloader{
 
 	getActiveQuestion(){
 		
-		console.log(this.#activeQuestion);
 		const board = this.getActiveBoard();
 		return board.getQuestionByID(this.#activeQuestion);
 
@@ -442,10 +534,11 @@ export default class Game extends Autoloader{
 		this.#answerInterval = setInterval(() => {
 			
 			const answeringTeam = this.getAnsweringTeam();
-			if( !answeringTeam ){
+			if( answeringTeam ){
 				if( !(--this.#answerTicks) ){
 					this.onAnswerTimedOut();
 				}
+				Game.ui.setQuestionTimeLeft(this.#answerTicks, this.answerTime);
 			}
 			else{
 				if( !(--this.#questionTicks) ){
@@ -465,6 +558,13 @@ export default class Game extends Autoloader{
 	// Asks a question
 	setActiveQuestion( question, type = Question.Type.Regular ){
 
+		if( question === false ){
+			this.#activeQuestion = '';
+			Game.ui.toggleQuestion(false);
+			this.updateControls();
+			return;
+		}
+
 		if( !(question instanceof Question) )
 			question = category.getQuestionByID(question);
 
@@ -474,16 +574,18 @@ export default class Game extends Autoloader{
 		if( question.id === this.#activeQuestion )
 			return;
 
-		this.stage = Game.Stage.Question;
+		this.setStage(Game.Stage.Question);
 
 		this.#activeQuestion = question.id;
-
-		this.#answerTicks = this.answerTime;
+		this.#answeringTeam = -1;
 		this.#questionTicks = this.questionTime;
 		this.#questionType = type;
-
+		clearTimeout(this.#activateBuzzersTimeout);
+		this.#activateBuzzersTimeout = setTimeout(() => {
+			this.enableAllBuzzers();
+		}, 1000);
+		this.updateControls();
 		this.startAnswerInterval();
-		console.log("Setting active question");
 		Game.ui.toggleQuestion(question);
 
 	}
@@ -492,20 +594,23 @@ export default class Game extends Autoloader{
 	setActiveQuestionCompleted(){
 
 		const question = this.getActiveQuestion();
-		console.log("Question", question);
 		if( !question )
 			return;
 
+		Game.ui.setQuestionTimeLeft(0,0);
 		Game.ui.toggleQuestion(question, true);
-		console.log("Setting completed questions", question.id);
 		this.completedQuestions.add(question.id);
-		this.#activeQuestion = '';
+		this.setActiveQuestion(false);
 		this.draw();
 		this.save();
 
 	}
 
 	isQuestionCompleted( id ){
+
+		if( id instanceof Question )
+			id = id.id;
+
 		return this.completedQuestions.has(id);
 	}
 	
@@ -519,8 +624,34 @@ export default class Game extends Autoloader{
 		return this.teams[this.#answeringTeam];
 
 	}
+	setAnsweringTeam( team ){
 
+		if( team === false ){
+			this.#answeringTeam = -1;
+			return;
+		}
+
+		this.disableAllBuzzers();
+		this.#answeringTeam = team.color;
+		Game.ui.toggleQuestionActive(team);
+		this.#answerTicks = this.answerTime;
+		Game.ui.setQuestionTimeLeft(this.#answerTicks, this.answerTime);
+		this.updateControls();
+
+	}
 	
+	getTeamsThatCanAnswer(){
+
+		let out = [];
+		for( let team of this.teams ){
+			
+			if( team.buzzerEnabled && team.active )
+				out.push(team);
+			
+		}
+		return out;
+
+	}
 
 	advanceBoard(){
 
@@ -530,6 +661,62 @@ export default class Game extends Autoloader{
 		this.save();
 
 	}
+
+	
+
+
+
+	// Updates buzzers on the board. Teams can be a boolean true (all), false (none), or an array of team colors
+	async updateBuzzers(){
+		
+		let enabledTeams = this.getTeamsThatCanAnswer();
+		if( enabledTeams.length === this.teams.length )
+			await Game.Serial.taskToggleButton(Constants.BUTTON_COLOR.ALL, true);
+		else if( !enabledTeams.length )
+			await Game.Serial.taskToggleButton(Constants.BUTTON_COLOR.ALL, false);
+		else{
+			let order = Game.shuffle(this.teams.slice());
+			for( let team of order ){
+
+				if( team.connected )
+					await Game.Serial.taskToggleButton(team.color, team.buzzerEnabled);	
+
+			}
+		}
+
+	}
+
+	async enableAllBuzzers(){
+		this.teams.forEach(team => team.buzzerEnabled = true);
+		return this.updateBuzzers();
+	}
+
+	async disableAllBuzzers(){
+		this.teams.forEach(team => team.buzzerEnabled = false);
+		return this.updateBuzzers();
+	}
+
+
+
+
+	// Updates the controls display
+	updateControls(){
+
+		let controls = [];
+		if( this.stage === Game.Stage.Question ){
+
+			if( this.getAnsweringTeam() ){
+				controls.push(
+					'Bck: Wrong',
+					'Enter: Correct',
+				);
+			}
+
+		}
+		Game.ui.setControls(...controls);
+
+	}
+
 
 
 	// Editing
@@ -574,6 +761,7 @@ export default class Game extends Autoloader{
 			array[i] = array[j];
 			array[j] = temp;
 		}
+		return array;
 	}
 
 

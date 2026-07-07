@@ -11,6 +11,7 @@ export default class Team extends Autoloader{
 	lastNumber = 0;			// bet
 	name = "";
 	connected = false;
+	buzzerEnabled = false;
 
 	constructor( data ){
 		super(data);
