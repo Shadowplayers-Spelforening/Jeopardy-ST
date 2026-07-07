@@ -2,6 +2,7 @@ import Category from "./Category.js";
 import Constants from "./Constants.js";
 import Game from "./Game.js";
 import Question from "./Question.js";
+import Team from "./Team.js";
 
 export default class UI{
 
@@ -15,6 +16,10 @@ export default class UI{
 	boardName = document.getElementById('boardName');
 	categories = document.getElementById('categories');
 	question = document.getElementById('question');
+	questionContent = document.getElementById('questionContent');
+	questionText = document.getElementById('questionText');
+	questionTeam = document.getElementById('questionTeam');
+	questionTimer = document.getElementById('questionTimer');
 	modal = document.getElementById('modal');
 	modalContent = document.getElementById('modalContent');
 	status = document.getElementById('status');
@@ -30,6 +35,15 @@ export default class UI{
 		this.title.addEventListener('input', () => {
 			this.game.name = this.title.innerText.trim();
 			this.game.save();
+		});
+
+		this.question.addEventListener('click', () => {
+			this.game.onQuestionOverlayBackgroundClicked();
+		});
+
+		this.questionContent.addEventListener('click', event => {
+			event.stopImmediatePropagation();
+
 		});
 
 	}
@@ -77,7 +91,6 @@ export default class UI{
 		this.renderTitle();
 		this.renderTeams();
 		this.renderBoard();
-		this.renderQuestion();
 		this.renderStatus();
 
 	}
@@ -161,7 +174,10 @@ export default class UI{
 		const questions = category.questions;
 		const editMode = Game.isEditMode();
 		
-		colDiv.childNodes.forEach((q) => q.classList.toggle('hidden', true));
+		colDiv.childNodes.forEach((q) => {
+			q.classList.toggle('hidden', true);
+			delete q.dataset.id;
+		});
 		let titleSpan;
 
 		// Create title
@@ -230,12 +246,10 @@ export default class UI{
 			else
 				div.classList.toggle("answered", game.isQuestionCompleted(question));
 			div.classList.toggle("hidden", false);
+			div.dataset.id = question.id;
 
 			div.onclick = event => {
-
-				if( editMode )
-					this.showQuestionEditor(category, question);
-
+				game.onQuestionClicked(question);
 			};
 			
 
@@ -311,12 +325,6 @@ export default class UI{
 		this.status.replaceChildren(ul);
 		
 	}
-
-	renderQuestion(){
-
-	}
-
-
 
 	// Static modals
 	toggleModal( on ){
@@ -760,6 +768,75 @@ export default class UI{
 		this.modalContent.replaceChildren(...elements);
 
 		this.toggleModal(true);
+
+	}
+
+
+	// Show the question in game
+	toggleQuestion( question, answered = false ){
+		
+		if( !(question instanceof Question) ){
+			this.question.classList.toggle("disabled", true);
+			return;
+		}
+		
+		const questionDiv = this.board.querySelector('div.question[data-id=\''+question.id+'\']');
+		let left = 0, top = 0;
+		// Get center of question div in window coordinates
+		if( questionDiv ){
+			const rect = questionDiv.getBoundingClientRect();
+			left = rect.left + rect.width/2;
+			top = rect.top + rect.height/2;
+		}
+
+		this.questionContent.classList.toggle('noTransition', true);
+		// Convert to percent
+		this.questionContent.style.left = left/window.innerWidth * 100 + '%';
+		this.questionContent.style.top = top/window.innerHeight * 100 + '%';
+		
+		this.questionText.innerText = answered ? question.answer : question.question;
+		this.toggleQuestionActive(false);
+
+		setTimeout(() => {
+			this.questionContent.classList.toggle('noTransition', false);
+			this.questionContent.style.top = '50%';
+			this.questionContent.style.left = '50%';
+			this.question.classList.toggle("disabled", false);
+		}, 50);
+		
+
+	}
+
+	setQuestionTimeLeft( timeLeft, max = 6 ){
+
+		// First make sure we have enough divs
+		for( let i = this.questionTimer.childNodes.length; i < max; ++i ){
+			this.questionTimer.append(document.createElement('div'));
+		}
+		// Hide if we have too many
+		for( let i = max; i < this.questionTimer.childNodes.length; ++i ){
+			this.questionTimer.childNodes[i].classList.toggle('hidden', true);
+		}
+		for( let i = 0; i < max; ++i ){
+			this.questionTimer.childNodes[i].classList.toggle('disabled', i >= timeLeft);
+		}
+
+
+	}
+
+	// Whether a team has buzzed in or not. If team is not a Team, the set inactive
+	toggleQuestionActive( team ){
+
+		this.questionContent.classList.toggle('active', Boolean(team));
+		if( !team ){
+			this.questionTeam.innerText = '';
+			this.questionContent.classList.remove(...Constants.BUTTON_ENUM);
+		}
+
+		if( team instanceof Team ){
+			this.questionTeam.innerText = team.name;
+			this.questionContent.classList.add(team.getColorLabel());
+		}
 
 	}
 

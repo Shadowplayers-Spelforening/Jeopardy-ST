@@ -80,6 +80,18 @@ export default class Board extends Autoloader{
 
 	}
 
+	getQuestionByID( id ){
+
+		for( let cat of this.categories ){
+
+			const out = cat.getQuestionByID(id);
+			if( out )
+				return out;
+
+		}
+
+	}
+
 	isEmpty(){
 		return this.categories.length === 0;
 	}

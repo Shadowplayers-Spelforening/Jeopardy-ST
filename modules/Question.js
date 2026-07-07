@@ -2,6 +2,12 @@ import Autoloader from "./_Autoloader.js";
 
 export default class Question extends Autoloader{
 
+	static Type = {
+		DailyDouble : 'DailyDouble',
+		Regular : 'Regular',
+		Final : 'Final',
+	};
+
 	id = "";
 	question = "";
 	answer = "";

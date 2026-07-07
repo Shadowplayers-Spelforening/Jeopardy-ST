@@ -37,11 +37,14 @@ export default class Category extends Autoloader{
 
 	}
 
-	getQuestionByID(){
+	getQuestionByID( id ){
 
-		for( let question of this.questions )
-			if( question.id === this.id )
+		for( let question of this.questions ){
+
+			if( question.id === id )
 				return question;
+
+		}
 
 	}
 

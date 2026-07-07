@@ -11,12 +11,9 @@ import UI from "./UI.js";
 export default class Game extends Autoloader{
 
 	static Serial = new Serial();
-	static State = {
-		Idle : "Idle",
-		Question : "Question",	
-	};
 	static Stage = {
 		Board : "Board",
+		Question : "Question",
 		DailyDouble : "DailyDouble",
 		Final : "Final",
 	};
@@ -49,13 +46,13 @@ export default class Game extends Autoloader{
 			return false;
 		
 		localStorage.activeGame = id;
+		if( this.game )
+			this.game.onDeactivate();
 		this.game = new Game(gameData);
 		this.onGameLoaded();
 		return true;
 
 	}
-
-	
 
 	static async saveGame( game ){
 
@@ -167,17 +164,24 @@ export default class Game extends Autoloader{
 
 	// Game data
 	id = crypto.randomUUID();
-	state = Game.State.Idle;
 	dailyDoubles = new Set();			// Question IDs
 	completedQuestions = new Set();		// Question IDs
 	nrDailyDoubles = 1;					// Per board
-
+	answerTime = 6;						// Seconds to answer
+	questionTime = 30;					// Seconds per question to answer
 	activeBoard = 0;
-	activeCategory = '';				// ID
-	activeQuestion = 0;
+	
 	stage = Game.Stage.Board;
 
 	#saveTimer = null;
+
+	#activeQuestion = '';				// ID
+
+	#answerTicks = 0;					// Seconds left for the team that buzzed in to answer
+	#questionTicks = 0;					// Seconds left for a team to buzz in
+	#answerInterval = null;				// Starts when a question is presented
+	#answeringTeam = -1;				// Team that buzzed in (-1 = none) Use getAnsweringTeam()
+	#questionType = Question.Type.Regular;
 
 	teams = [
 		new Team({color:Constants.BUTTON_COLOR.RED}),
@@ -201,14 +205,10 @@ export default class Game extends Autoloader{
 			boards : Board.dumpThese(this.boards),
 			finalQuestion : this.finalQuestion.dump(),
 			id : this.id,
-			state : this.state,
 			dailyDoubles : Array.from(this.dailyDoubles),
 			completedQuestions : Array.from(this.completedQuestions),
 			activeBoard : this.activeBoard,
-			activeCategory : this.activeCategory,
-			activeQuestion : this.activeQuestion,
 			teams : Team.dumpThese(this.teams),
-			stage : this.stage,
 			nrDailyDoubles : this.nrDailyDoubles,
 		};
 
@@ -242,6 +242,8 @@ export default class Game extends Autoloader{
 			this.reset();
 	}
 
+
+	// Events from serial device
 	onSerialConnect(){
 
 		for( let team of this.teams )
@@ -280,6 +282,46 @@ export default class Game extends Autoloader{
 
 	}
 
+
+	// Events from UI
+	onQuestionClicked( question ){
+
+		if( Game.isEditMode() )
+			Game.ui.showQuestionEditor(question);
+		else
+			this.setActiveQuestion(question);
+
+	}
+
+	// Cancel question
+	onQuestionOverlayBackgroundClicked(){
+		this.#activeQuestion = '';
+		Game.ui.toggleQuestion(false);
+		this.stopAnswerInterval();
+	}
+
+	// Time for buzzing in has ended
+	onQuestionTimedOut(){
+		this.stopAnswerInterval();
+		console.log("Question timed out");
+	}
+
+	// Time for a team buzzing in to answer has ended
+	// Host has to decide whether they answered correct or not
+	onAnswerTimedOut(){
+		this.stopAnswerInterval();
+		this.setActiveQuestionCompleted();
+	}
+
+	onAnswerCorrect(){
+		console.log("Answer correct");
+	}
+
+	onAnswerIncorrect(){
+		console.log("Anwer incorrect");
+	}
+
+
 	// Ran when this game becomes the primary game for rendering
 	onActivate(){
 		
@@ -291,6 +333,11 @@ export default class Game extends Autoloader{
 		Game.Serial.onRemoteConnect = (color) => this.onSerialRemoteConnect(color, true);
 		Game.Serial.onRemoteDisconnect = (color) => this.onSerialRemoteConnect(color, false);
 
+	}
+
+	onDeactivate(){
+		clearTimeout(this.#saveTimer);
+		clearInterval(this.#answerInterval);
 	}
 
 	getTeamByColor( color ){
@@ -320,8 +367,7 @@ export default class Game extends Autoloader{
 	reset(){
 
 		this.activeBoard = 0;
-		this.activeCategory = 0;
-		this.activeQuestion = 0;
+		this.#activeQuestion = '';
 
 		this.dailyDoubles = new Set();
 		this.completedQuestions = new Set();
@@ -379,13 +425,100 @@ export default class Game extends Autoloader{
 	}
 
 	getActiveQuestion(){
-		return this.boards[this.activeBoard].categories[this.activeCategory].questions[this.activeQuestion];
+		
+		console.log(this.#activeQuestion);
+		const board = this.getActiveBoard();
+		return board.getQuestionByID(this.#activeQuestion);
+
+	}
+
+	// Starts the timer. Doesn't reset ticks. Useful because the question timer pauses when a team buzzes in
+	startAnswerInterval(){
+		
+		this.stopAnswerInterval();
+		if( !this.#answerTicks && !this.#questionTicks )
+			return;
+
+		this.#answerInterval = setInterval(() => {
+			
+			const answeringTeam = this.getAnsweringTeam();
+			if( !answeringTeam ){
+				if( !(--this.#answerTicks) ){
+					this.onAnswerTimedOut();
+				}
+			}
+			else{
+				if( !(--this.#questionTicks) ){
+					this.onQuestionTimedOut();
+				}
+			}
+			
+
+		}, 1000);
+
+	}
+
+	stopAnswerInterval(){
+		clearInterval(this.#answerInterval);
+	}
+
+	// Asks a question
+	setActiveQuestion( question, type = Question.Type.Regular ){
+
+		if( !(question instanceof Question) )
+			question = category.getQuestionByID(question);
+
+		if( !question )
+			throw new Error("[setActiveQuestion] Invalid question");
+
+		if( question.id === this.#activeQuestion )
+			return;
+
+		this.stage = Game.Stage.Question;
+
+		this.#activeQuestion = question.id;
+
+		this.#answerTicks = this.answerTime;
+		this.#questionTicks = this.questionTime;
+		this.#questionType = type;
+
+		this.startAnswerInterval();
+		console.log("Setting active question");
+		Game.ui.toggleQuestion(question);
+
+	}
+
+	// Also shows the answer
+	setActiveQuestionCompleted(){
+
+		const question = this.getActiveQuestion();
+		console.log("Question", question);
+		if( !question )
+			return;
+
+		Game.ui.toggleQuestion(question, true);
+		console.log("Setting completed questions", question.id);
+		this.completedQuestions.add(question.id);
+		this.#activeQuestion = '';
+		this.draw();
+		this.save();
+
 	}
 
 	isQuestionCompleted( id ){
 		return this.completedQuestions.has(id);
 	}
+	
+	isQuestionFinale(){ return this.#questionType === Question.Type.Final; }
+	isQuestionDailyDouble(){ return this.#questionType === Question.Type.DailyDouble; }
 
+	getAnsweringTeam(){
+
+		if( this.#answeringTeam < 0 )
+			return false;
+		return this.teams[this.#answeringTeam];
+
+	}
 
 	
 
