@@ -14,8 +14,10 @@ export default class Game extends Autoloader{
 	static Stage = {
 		Board : "Board",
 		Question : "Question",
-		DailyDouble : "DailyDouble",
+		DailyDouble : "DailyDouble",		// waiting for a player to bet
 		Final : "Final",
+		DailyDoubleCompleted : "DailyDoubleCompleted",		// Currently showing answer, waiting for enter to show what the wager was and modify score
+		ShowWager : "ShowWager"				// Show wager for active team
 	};
 
 	static game;
@@ -171,7 +173,9 @@ export default class Game extends Autoloader{
 	questionTime = 30;					// Seconds per question to answer
 	activeBoard = 0;
 	stage = Game.Stage.Board;
-
+	categoryTeam = 0;					// Team that's picking category. This is updated on question correct.
+	minWager = 2000;					// Minimum max wager you can pick on finale or daily double
+	
 	#saveTimer = null;
 
 	#activeQuestion = '';				// ID
@@ -182,6 +186,7 @@ export default class Game extends Autoloader{
 	#answeringTeam = -1;				// Team that buzzed in (-1 = none) Use getAnsweringTeam()
 	#questionType = Question.Type.Regular;
 	#activateBuzzersTimeout = null;		// Time before activating buzzers
+	#lastAnswerCorrect = false;			// Used for wagering
 
 	teams = [
 		new Team({color:Constants.BUTTON_COLOR.RED}),
@@ -210,6 +215,7 @@ export default class Game extends Autoloader{
 			activeBoard : this.activeBoard,
 			teams : Team.dumpThese(this.teams),
 			nrDailyDoubles : this.nrDailyDoubles,
+			categoryTeam : this.categoryTeam,
 		};
 
 		return out;
@@ -224,6 +230,7 @@ export default class Game extends Autoloader{
 		
 		this.boards = Board.loadThese(this.boards);
 		this.teams = Team.loadThese(this.teams);
+		this.teams.map(team => team.setDisplayMode(Team.Displaymode.Score));
 		this.finalQuestion = new Question(this.finalQuestion);
 		this.dailyDoubles = new Set(this.dailyDoubles);
 		this.completedQuestions = new Set(this.completedQuestions);
@@ -244,7 +251,7 @@ export default class Game extends Autoloader{
 	}
 
 
-	setStage( stage, force = false ){
+	async setStage( stage, force = false ){
 
 		if( stage === this.stage && !force )
 			return;
@@ -256,12 +263,50 @@ export default class Game extends Autoloader{
 			this.setActiveQuestion(false);
 			
 		}
+		else if( stage === Game.Stage.DailyDouble ){
+
+			await this.disableAllBuzzers();
+			const team = this.getAnsweringTeam();
+			const question = this.getActiveQuestion();
+			Game.ui.toggleQuestion(new Question({
+				id : question.id,
+				question : "Daily Double!"
+			}));
+			Game.ui.toggleQuestionActive(team);
+			team.setDisplayMode(Team.Displaymode.Numpad);
+			await this.updateDisplays();
+
+		}
+		else if( stage === Game.Stage.ShowWager ){
+
+			const team = this.getCategoryPickingTeam();
+			let num = parseInt(team.lastNumber) || 0;
+			const question = new Question({
+				question : String(num),
+			});
+			
+			// Draw the wager as a question
+			Game.ui.toggleQuestion(question);
+			Game.ui.toggleQuestionActive(team);
+			
+			if( !this.#lastAnswerCorrect )
+				num = -num;
+			team.score += num;
+			this.onTeamScoreChanged(team);
+			this.save();
+
+		}
+		else if( stage === Game.Stage.DailyDoubleCompleted ){
+
+		}
+
+		this.updateControls();
 
 	}
 
 
 	// return true if we captured it
-	onKeyPress( key ){
+	async onKeyPress( key ){
 
 		if( this.stage === Game.Stage.Question ){
 			
@@ -273,13 +318,38 @@ export default class Game extends Autoloader{
 
 			}
 			else if( key === 'Enter' ){
+				this.stopAnswerInterval();
 				this.onAnswerCorrect();
 				return true;
 			}
 			else if( key === 'Backspace' ){
+				this.stopAnswerInterval();
 				this.onAnswerIncorrect();
 				return true;
 			}
+
+		}
+		else if( this.stage === Game.Stage.DailyDouble ){
+			
+			const team = this.getAnsweringTeam();
+			if( key === 'Enter' && !team.buzzerEnabled ){ // buzzerEnabled is set to false when they send in their bet
+				
+				const question = this.getActiveQuestion();
+				await this.setActiveQuestion(question, Question.Type.Regular);
+
+			}
+
+		}
+		else if( this.stage === Game.Stage.DailyDoubleCompleted ){
+
+			if( key === 'Enter' )
+				this.setStage(Game.Stage.ShowWager);
+
+		}
+		else if( this.stage === Game.Stage.ShowWager ){
+
+			await this.setStage(Game.Stage.Board);
+			this.draw();
 
 		}
 
@@ -294,9 +364,10 @@ export default class Game extends Autoloader{
 		for( let team of this.teams )
 			team.connected = false;
 		this.draw();
+		
 
 	}
-	onSerialRemoteConnect( teamColor, connected = true ){
+	async onSerialRemoteConnect( teamColor, connected = true ){
 
 		const team = this.getTeamByColor(teamColor);
 		if( !team )
@@ -306,7 +377,9 @@ export default class Game extends Autoloader{
 		if( team.connected )
 			team.active = true;
 		this.draw();
-		Game.Serial.taskToggleButton(team.color, team.buzzerEnabled);
+
+		await this.updateDisplay(team);
+		await this.updateBuzzer(team);
 
 	}
 	onRemoteButton( teamColor ){
@@ -318,6 +391,7 @@ export default class Game extends Autoloader{
 		if( this.stage === Game.Stage.Question ){
 
 			if( !this.getAnsweringTeam() ){
+				this.disableAllBuzzers();
 				this.setAnsweringTeam(team);
 			}
 
@@ -325,13 +399,34 @@ export default class Game extends Autoloader{
 		
 
 	}
-	onRemoteText( teamColor, text ){
+	async onRemoteText( teamColor, text ){
 
 		const team = this.getTeamByColor(teamColor);
-		if( !teamColor )
+		if( !team )
 			return;
 
-		console.log("Got text", text, "from", team);
+		if( this.stage === Game.Stage.DailyDouble ){
+
+			const amount = parseInt(text) || 0;
+			if( 
+				this.getAnsweringTeam() === team &&
+				team.buzzerEnabled &&
+				amount > 0 &&
+				(amount <= this.minWager || amount <= this.getAnsweringTeam().score)
+			){
+
+				team.buzzerEnabled = false;
+				team.lastNumber = amount;
+				team.setDisplayMode(Team.Displaymode.Score);
+				await this.updateDisplay(team);
+				await this.updateBuzzer(team);
+				this.updateControls();
+
+			}
+
+
+		}
+		
 
 	}
 
@@ -341,8 +436,14 @@ export default class Game extends Autoloader{
 
 		if( Game.isEditMode() )
 			Game.ui.showQuestionEditor(question);
-		else
-			this.setActiveQuestion(question);
+		else{
+			
+			let type = Question.Type.Regular;
+			if( this.isQuestionDailyDouble(question) )
+				type = Question.Type.DailyDouble;
+			this.setActiveQuestion(question, type);
+
+		}
 
 	}
 
@@ -363,8 +464,10 @@ export default class Game extends Autoloader{
 	// Time for the active team to answer has ended
 	// Host has to decide whether they answered correct or not
 	onAnswerTimedOut(){
+
 		this.stopAnswerInterval();
 		console.log("Player answer timed out. Still have to wait for judge tho.");
+
 	}
 
 	onAnswerCorrect(){
@@ -375,10 +478,27 @@ export default class Game extends Autoloader{
 		if( !question || !team )
 			return;
 
-		team.score += question._value;
-		this.onTeamScoreChanged(team);
+		this.#lastAnswerCorrect = true;
+		
+
 		this.setActiveQuestionCompleted();
+
+		if( this.isActiveQuestionDailyDouble() ){
+
+			
+			this.setStage(Game.Stage.DailyDoubleCompleted);
+
+		}
+		else{
+			
+			team.score += question._value;
+			this.onTeamScoreChanged(team);
+
+		}
+
+		this.categoryTeam = team.color;
 		Game.ui.toggleQuestionActive(team);	// Colorizes the answer so we know who got the right answer
+		this.updateControls();
 
 	}
 
@@ -388,28 +508,46 @@ export default class Game extends Autoloader{
 		const team = this.getAnsweringTeam();
 		if( !question || !team )
 			return;
+
 		team.buzzerEnabled = false;
-		team.score -= question._value;
-		this.onTeamScoreChanged(team);
+		this.#lastAnswerCorrect = false;
+		
 
-		this.setAnsweringTeam(false);
+		if( this.isActiveQuestionDailyDouble() ){
 
-		// There are teams left
-		const remainingTeams = this.getTeamsThatCanAnswer();
-		if( remainingTeams.length ){
-
-			this.startAnswerInterval();
-			Game.ui.toggleQuestionActive(false);
-			this.updateBuzzers();
+			this.onQuestionTimedOut();		// Shows the answer
+			Game.ui.toggleQuestionActive(team);	// Colorizes the answer so we know who got the right answer
+			this.setStage(Game.Stage.DailyDoubleCompleted);
 
 		}
-		// No teams left
-		else
-			this.onQuestionTimedOut();
+		else{
+
+			team.score -= question._value;
+			this.onTeamScoreChanged(team);
+			this.setAnsweringTeam(false);
+			// There are teams left
+			const remainingTeams = this.getTeamsThatCanAnswer();
+			if( remainingTeams.length ){
+
+				this.startAnswerInterval();
+				Game.ui.toggleQuestionActive(false);
+				this.updateBuzzers();
+
+			}
+			// No teams left
+			else{
+				this.onQuestionTimedOut();
+			}
+
+		}
+		this.updateControls();
 
 	}
 
 	onTeamScoreChanged( team ){
+
+		this.updateDisplay(team);
+		this.draw();
 
 	}
 
@@ -462,20 +600,37 @@ export default class Game extends Autoloader{
 		this.activeBoard = 0;
 		this.#activeQuestion = '';
 
+		this.categoryTeam = 0;
 		this.dailyDoubles = new Set();
 		this.completedQuestions = new Set();
-		for( let team of this.teams )
+		const viableStartTeams = [];
+		for( let team of this.teams ){
+
 			team.reset();
+			team.setDisplayMode(Team.Displaymode.Score);
+			if( team.active )
+				viableStartTeams.push(team.color);
+
+		}
+
+		if( viableStartTeams.length > 0 )
+			this.categoryTeam = Game.randElem(viableStartTeams);
 
 		if( this.nrDailyDoubles > 0 ){
 
-			const viableDailyDoubles = this.getAllQuestionIds();
-			Game.shuffle(viableDailyDoubles);
-			this.dailyDoubles = new Set(viableDailyDoubles.slice(0, this.nrDailyDoubles));
-			
+			// Todo: Re-enable
+			//const viableDailyDoubles = this.getAllQuestionIds();
+			//Game.shuffle(viableDailyDoubles);
+			//this.dailyDoubles = new Set(viableDailyDoubles.slice(0, this.nrDailyDoubles));
+			this.dailyDoubles = new Set();
+			this.dailyDoubles.add(this.boards[0].categories[0].questions[0].id); // testing
+
 		}
 
+		this.setAllDisplaysScore();
+
 		this.draw(true);
+		this.save();
 
 	}
 
@@ -498,6 +653,11 @@ export default class Game extends Autoloader{
 		this.#saveTimer = setTimeout(() => Game.saveGame(this), 500);
 	}
 	
+	getCategoryPickingTeam(){
+
+		return this.getTeamByColor(this.categoryTeam);
+
+	}
 
 	getCategoryByID( id ){
 		return this.getActiveBoard().getCategoryByID(id);
@@ -535,12 +695,14 @@ export default class Game extends Autoloader{
 			
 			const answeringTeam = this.getAnsweringTeam();
 			if( answeringTeam ){
+
 				if( !(--this.#answerTicks) ){
 					this.onAnswerTimedOut();
 				}
-				Game.ui.setQuestionTimeLeft(this.#answerTicks, this.answerTime);
+				Game.ui.setQuestionTimeLeft(this.#answerTicks, this.getAnswerTime());
+
 			}
-			else{
+			else if( !this.isActiveQuestionDailyDouble() ){
 				if( !(--this.#questionTicks) ){
 					this.onQuestionTimedOut();
 				}
@@ -552,11 +714,13 @@ export default class Game extends Autoloader{
 	}
 
 	stopAnswerInterval(){
+
 		clearInterval(this.#answerInterval);
 	}
 
 	// Asks a question
-	setActiveQuestion( question, type = Question.Type.Regular ){
+	// Type can either be Question.Type.* or undefined if we shouldn't modify the type
+	async setActiveQuestion( question, type ){
 
 		if( question === false ){
 			this.#activeQuestion = '';
@@ -571,22 +735,47 @@ export default class Game extends Autoloader{
 		if( !question )
 			throw new Error("[setActiveQuestion] Invalid question");
 
-		if( question.id === this.#activeQuestion )
-			return;
-
-		this.setStage(Game.Stage.Question);
+	
 
 		this.#activeQuestion = question.id;
 		this.#answeringTeam = -1;
 		this.#questionTicks = this.questionTime;
-		this.#questionType = type;
+
+		const isDailyDouble = this.isActiveQuestionDailyDouble();
+
 		clearTimeout(this.#activateBuzzersTimeout);
-		this.#activateBuzzersTimeout = setTimeout(() => {
-			this.enableAllBuzzers();
-		}, 1000);
-		this.updateControls();
-		this.startAnswerInterval();
-		Game.ui.toggleQuestion(question);
+
+		// This is set when encountering the daily double
+		if( type === Question.Type.DailyDouble ){
+
+			const team = this.getCategoryPickingTeam();
+			await this.setAnsweringTeam(team);
+			await this.setStage(Game.Stage.DailyDouble);
+			team.buzzerEnabled = true;		// Allows team to answer
+
+		}
+		// This is also called on a daily double, once the team has made a bet
+		else{
+			
+			await this.setStage(Game.Stage.Question);
+			Game.ui.toggleQuestion(question);
+			await this.updateControls();
+
+			if( isDailyDouble ){
+				const team = this.getCategoryPickingTeam();
+				await this.setAnsweringTeam(team);
+			}
+			else{
+				this.#activateBuzzersTimeout = setTimeout(() => {
+					this.enableAllBuzzers();
+				}, 1000);
+			}
+			
+			this.startAnswerInterval();
+
+
+		}
+		
 
 	}
 
@@ -606,7 +795,7 @@ export default class Game extends Autoloader{
 
 	}
 
-	isQuestionCompleted( id ){
+	isActiveQuestionCompleted( id ){
 
 		if( id instanceof Question )
 			id = id.id;
@@ -614,8 +803,12 @@ export default class Game extends Autoloader{
 		return this.completedQuestions.has(id);
 	}
 	
-	isQuestionFinale(){ return this.#questionType === Question.Type.Final; }
-	isQuestionDailyDouble(){ return this.#questionType === Question.Type.DailyDouble; }
+	isActiveQuestionFinale(){ return false; }	// Todo
+	isActiveQuestionDailyDouble(){ 
+		const question = this.getActiveQuestion();
+		return question && this.isQuestionDailyDouble(question); 
+	}
+	isQuestionDailyDouble( question ){ return this.dailyDoubles.has(question.id); }
 
 	getAnsweringTeam(){
 
@@ -631,13 +824,22 @@ export default class Game extends Autoloader{
 			return;
 		}
 
-		this.disableAllBuzzers();
 		this.#answeringTeam = team.color;
+
+		if( this.stage === Game.Stage.DailyDouble )
+			return;
+
 		Game.ui.toggleQuestionActive(team);
-		this.#answerTicks = this.answerTime;
-		Game.ui.setQuestionTimeLeft(this.#answerTicks, this.answerTime);
+		const aTime = this.getAnswerTime();
+		this.#answerTicks = aTime;
+		Game.ui.setQuestionTimeLeft(aTime, aTime);
 		this.updateControls();
 
+	}
+
+	// Gets total time a team that has buzzed in (or finale, or daily double) has to answer
+	getAnswerTime(){
+		return this.isActiveQuestionDailyDouble() ? 30 : this.answerTime;
 	}
 	
 	getTeamsThatCanAnswer(){
@@ -676,14 +878,17 @@ export default class Game extends Autoloader{
 			await Game.Serial.taskToggleButton(Constants.BUTTON_COLOR.ALL, false);
 		else{
 			let order = Game.shuffle(this.teams.slice());
-			for( let team of order ){
+			for( let team of order )
+				await this.updateBuzzer(team);
 
-				if( team.connected )
-					await Game.Serial.taskToggleButton(team.color, team.buzzerEnabled);	
-
-			}
 		}
 
+	}
+
+	async updateBuzzer( team ){
+		if( !team.connected )
+			return false;
+		await Game.Serial.taskToggleButton(team.color, team.buzzerEnabled);	
 	}
 
 	async enableAllBuzzers(){
@@ -696,6 +901,62 @@ export default class Game extends Autoloader{
 		return this.updateBuzzers();
 	}
 
+	async updateDisplays(){
+		
+		for( let team of this.teams )
+			await this.updateDisplay(team);
+
+		
+	}
+
+	async updateDisplay( team ){
+
+		if( !team.connected )
+			return;
+
+		const dm = team.displayMode;
+		if( dm === Team.Displaymode.Score || dm === Team.Displaymode.Blank ){
+			
+			let text = '';
+			if( dm === Team.Displaymode.Score )
+				text = team.score;
+			await Game.Serial.taskShowText(team.color, 0, 0xFFFFFF, text);
+
+		}
+		else if( dm === Team.Displaymode.Numpad ){
+
+			const maxVal = Math.max(2000, team.score);
+			await Game.Serial.taskShowNumpad(team.color, 0, 0xFFFFFF, maxVal, "Enter your bet [max "+maxVal+"]:"); // Todo: Configure min bet
+
+		}
+		else if( dm === Team.Displaymode.Keyboard ){
+			
+			await Game.Serial.taskShowKeyboard(team.color, 0, 0xFFFFFF, 100, "Your Answer:");
+
+		}
+
+	}
+
+	// Sets all displays to show the current score
+	async setAllDisplaysScore(){
+		this.teams.map(el => el.setDisplayMode(Team.Displaymode.Score));
+		await this.updateDisplays();
+	}
+
+	async setAllDisplaysNumpad(){
+		this.teams.map(el => el.setDisplayMode(Team.Displaymode.Numpad));
+		await this.updateDisplays();
+	}
+
+	async setAllDisplaysKeyboard(){
+		this.teams.map(el => el.setDisplayMode(Team.Displaymode.Keyboard));
+		await this.updateDisplays();
+	}
+
+	async setDisplayNumpad( team ){
+		team.setDisplayMode(Team.Displaymode.Numpad);
+		await this.updateDisplays();
+	}
 
 
 
@@ -705,13 +966,34 @@ export default class Game extends Autoloader{
 		let controls = [];
 		if( this.stage === Game.Stage.Question ){
 
-			if( this.getAnsweringTeam() ){
+			if( !this.getActiveQuestion() ){
+				controls.push(
+					'Enter: Continue',
+				);
+			}
+			else if( this.getAnsweringTeam() ){
 				controls.push(
 					'Bck: Wrong',
 					'Enter: Correct',
 				);
 			}
 
+		}
+		else if( this.stage === Game.Stage.DailyDouble ){
+			
+			const team = this.getAnsweringTeam();
+			if( team && !team.buzzerEnabled ){ // buzzerEnabled is set to false when they send in their bet
+				controls.push(
+					'Enter: Show Question'
+				);
+			}
+
+		}
+		else if( this.stage === Game.Stage.ShowWager ){
+			controls.push('Enter: Continue');
+		}
+		else if( this.stage === Game.Stage.DailyDoubleCompleted ){
+			controls.push('Enter: Show Wager');
 		}
 		Game.ui.setControls(...controls);
 
@@ -762,6 +1044,10 @@ export default class Game extends Autoloader{
 			array[j] = temp;
 		}
 		return array;
+	}
+
+	static randElem( array ){
+		return array[Math.floor(Math.random() * array.length)];
 	}
 
 

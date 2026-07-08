@@ -33,3 +33,6 @@ export default class Question extends Autoloader{
 	}
 
 };
+
+window.Question = Question;
+

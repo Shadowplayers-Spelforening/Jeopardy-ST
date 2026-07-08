@@ -191,6 +191,10 @@ form{
 	border-top-right-radius: 2vmin;
 	border-bottom:none;
 }
+#teams > div.team.active{
+	box-shadow: 0 0 2vmin #FFF;
+	
+}
 #questionContent.RED, #teams > div.RED{ border-color:#FFAAAA; color:#FFAAAA; background-color:#663333; }
 #questionContent.YELLOW, #teams > div.YELLOW{ border-color:#FFFFAA; color:#FFFFAA; background-color:#666633; }
 #questionContent.GREEN, #teams > div.GREEN{ border-color:#AAFFAA; color:#AAFFAA; background-color:#336633; }

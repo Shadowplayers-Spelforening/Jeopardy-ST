@@ -306,10 +306,10 @@ export default class Serial{
 	
 	taskPing(){ return this.runTask(Serial.SIN_PING); }
 	taskToggleButton( button, enable ){ return this.runTask(Serial.SIN_TOGGLE_BUTTON, button, enable); }
-	taskShowText( button, background, textColor, text ){ return this.runTask(Serial.SIN_SHOW_TEXT, button, background, textColor, text); };
-	taskShowKeyboard( button, background, textColor, maxLength, text ){ return this.runTask(Serial.SIN_SHOW_KEYBOARD, button, background, textColor, maxLength, text); };
+	taskShowText( button, background, textColor, text ){ return this.runTask(Serial.SIN_SHOW_TEXT, button, background, textColor, String(text)); };
+	taskShowKeyboard( button, background, textColor, maxLength, text ){ return this.runTask(Serial.SIN_SHOW_KEYBOARD, button, background, textColor, maxLength, String(text)); };
 	taskGetText( button ){ return this.runTask(Serial.SIN_GET_TEXT, button); };
-	taskShowNumpad( button, background, textColor, maxValue, text ){ return this.runTask(Serial.SIN_SHOW_NUMPAD, button, background, textColor, maxValue, text); };
+	taskShowNumpad( button, background, textColor, maxValue, text ){ return this.runTask(Serial.SIN_SHOW_NUMPAD, button, background, textColor, maxValue, String(text)); };
 	taskGetConnected(){ return this.runTask(Serial.SIN_GET_CONNECTED); };
 
 }

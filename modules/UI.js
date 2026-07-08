@@ -122,6 +122,10 @@ export default class UI{
 		const game = this.game;
 		let numConnected = 0;
 
+		let pickingTeam = game.getCategoryPickingTeam();
+		if( game.stage !== Game.Stage.Board )
+			pickingTeam = null;
+
 		const teams = this.teams.childNodes;
 		for( let i = 0; i < this.game.teams.length; ++i ){
 
@@ -165,6 +169,7 @@ export default class UI{
 				game.save();
 
 			});
+			div.classList.toggle('active', team === pickingTeam);
 
 			div.classList.toggle('hidden', !team.isConnected());
 
@@ -250,8 +255,12 @@ export default class UI{
 			if( editMode ){
 				div.classList.toggle("valid", question.isValid());
 			}
-			else
-				div.classList.toggle("answered", game.isQuestionCompleted(question));
+			else{
+				const completed = game.isActiveQuestionCompleted(question);
+				div.classList.toggle("answered", completed);
+				if( completed && game.isQuestionDailyDouble(question) )
+					div.childNodes[0].innerText = 'DD';
+			}
 			div.classList.toggle("hidden", false);
 			div.dataset.id = question.id;
 
@@ -787,7 +796,7 @@ export default class UI{
 			return;
 		}
 		
-		const questionDiv = this.board.querySelector('div.question[data-id=\''+question.id+'\']');
+		const questionDiv = this.board.querySelector('div[data-id=\''+question.id+'\']');
 		let left = 0, top = 0;
 		// Get center of question div in window coordinates
 		if( questionDiv ){
@@ -822,8 +831,8 @@ export default class UI{
 		}
 
 		// Hide if we have too many
-		for( let i = max; i < this.questionTimer.children.length; ++i ){
-			this.questionTimer.children[i].classList.toggle('hidden', true);
+		for( let i = 0; i < this.questionTimer.children.length; ++i ){
+			this.questionTimer.children[i].classList.toggle('hidden', i >= max);
 		}
 		
 		for( let i = 0; i < max; ++i ){
@@ -836,6 +845,7 @@ export default class UI{
 	// Whether a team has buzzed in or not. If team is not a Team, the set inactive
 	toggleQuestionActive( team ){
 
+		this.setQuestionTimeLeft(0,0);
 		this.questionContent.classList.toggle('active', Boolean(team));
 		if( !team ){
 			this.questionTeam.innerText = '';

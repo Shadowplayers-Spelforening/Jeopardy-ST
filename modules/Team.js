@@ -4,6 +4,13 @@ import Constants from "./Constants.js";
 
 export default class Team extends Autoloader{
 
+	static Displaymode = {
+		Blank : 'Blank',
+		Score : 'Score',
+		Keyboard : 'Keyboard',
+		Numpad : 'Numpad',
+	};
+
 	color = 0;		// Maps to Constants.BUTTON_COLOR
 	score = 0;
 	active = false;
@@ -12,6 +19,8 @@ export default class Team extends Autoloader{
 	name = "";
 	connected = false;
 	buzzerEnabled = false;
+	displayMode = Team.Displaymode.Blank;
+
 
 	constructor( data ){
 		super(data);
@@ -40,6 +49,10 @@ export default class Team extends Autoloader{
 
 	isConnected(){
 		return this.active;
+	}
+
+	setDisplayMode( mode = Team.Displaymode.Blank ) {
+		this.displayMode = mode;
 	}
 
 	dump(){
