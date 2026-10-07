@@ -1,10 +1,10 @@
 - Add a queue to Serial so you don't have to await all the time
 
 [Viewer]
-- Present categories (Category should have an isPresented flag)
-- Daily double
 - Final question
 - Show score on buttons
+
+Split the game into board state objects that manage what they should do
 
 
 Later:

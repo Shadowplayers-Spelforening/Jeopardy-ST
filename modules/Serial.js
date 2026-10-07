@@ -36,6 +36,8 @@ export default class Serial{
 	readingLoop = null;
 	serialAbortController = null;
 	readableStreamClosed = null;
+	queue = '';
+	sending = false;
 
 	constructor(){
 		
@@ -286,18 +288,26 @@ export default class Serial{
 	onRemoteDisconnect(color){ console.log("Disconnected from color", color); }
 
 	async runTask(task, ...args){
+
 		if( !this.port || !this.port.writable ){
-			throw new Error("Serial port is not connected");
+			console.warn("Serial port is not connected");
+			return;
 		}
 
 		let message = Serial.PREFIX + JSON.stringify([task, ...args]) + Serial.SUFFIX;
-		const encoded = new TextEncoder().encode(message);
-
-		console.log("[Serial] Sending ", message);
+		this.queue = message;
+		if( this.sending )
+			return;
+		
+		this.sending = true;
+		const encoded = new TextEncoder().encode(this.queue);
+		console.log("[Serial] Sending ", this.queue);
 		this.writer = this.port.writable.getWriter();
 		try{
+			this.queue = '';
 			await this.writer.write(encoded);
 		}finally{
+			this.sending = false;
 			this.writer.releaseLock();
 			this.writer = null;
 		}

@@ -80,7 +80,7 @@ export default class UI{
 		else if( label === 'switchBoard' )
 			this.game.advanceBoard();
 		else if( label === 'editFinalQuestion' )
-			this.showQuestionEditor( this.game, this.game.finalQuestion );
+			this.showQuestionEditor( this.game, this.game.finalQuestion, this.game.finalQuestionCategory );
 
 	}
 
@@ -227,7 +227,7 @@ export default class UI{
 			titleSpan = span;
 
 		}
-		colDiv.childNodes[0].childNodes[0].innerText = category.name;
+		colDiv.childNodes[0].childNodes[0].innerText = this.game.presentedCategories.has(category.id) || editMode ? category.name : '???';
 		colDiv.childNodes[0].classList.toggle('hidden', false);
 
 		for( let i = 0; i < questions.length; ++i ){
@@ -311,7 +311,7 @@ export default class UI{
 		const game = this.game;
 		const notices = [];
 		
-		if( !game.finalQuestion.isValid() )
+		if( !game.hasFinalQuestion() )
 			notices.push('Final question is invalid.');
 
 		let boardSizeUneven = false;
@@ -720,19 +720,45 @@ export default class UI{
 
 	}
 
-	// Category may also be the this.game, in which case we edit the final question
-	showQuestionEditor( category, question ){
+	// Category may also be the this.game, in which case we edit the final question (questionHint should be supplied)
+	showQuestionEditor( category, question, questionHint = '' ){
 
-		if( !(category instanceof Category) && !(category instanceof Game) )
+		const isFinalQuestion = category instanceof Game;
+		if( !(category instanceof Category) && !isFinalQuestion ){
+			console.warn("Object in following error:", category);
 			throw new Error("showQuestionEditor called with non-Category object");
+		}
 		if( !(question instanceof Question) )
 			throw new Error("showQuestionEditor called with non-Question object");
 
 		const game = this.game;
-		let elements = [];
+		let elements = [], span;
 
+		if( isFinalQuestion ){
 
-		let span = document.createElement('span');
+			span = document.createElement('span');
+			span.innerText = 'Question Category: ';
+			elements.push(span);
+
+			elements.push(document.createElement('br'));
+
+			let cInput = document.createElement('input');
+			cInput.name = 'category';
+			cInput.value = questionHint;
+			elements.push(cInput);
+			cInput.addEventListener('input', () => {
+				
+				clearTimeout(cInput._save);
+				game.finalQuestionCategory = cInput.value.trim();
+				game.save();
+				this.renderStatus();
+					
+			});
+			elements.push(document.createElement('br'));
+
+		}
+
+		span = document.createElement('span');
 		span.innerText = 'Question: ';
 		elements.push(span);
 		let qInput = document.createElement('textarea');
@@ -744,8 +770,7 @@ export default class UI{
 			clearTimeout(qInput._save);
 			question.question = qInput.value.trim();
 
-			console.log("Category", category);
-			if( category instanceof Game ){
+			if( isFinalQuestion ){
 				game.save();
 				this.renderStatus();
 			}

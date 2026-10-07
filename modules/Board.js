@@ -28,6 +28,16 @@ export default class Board extends Autoloader{
 		
 	}
 
+	getAllQuestions(){
+		
+		let out = [];
+		for( let cat of this.categories ){
+			out.push(...cat.questions);
+		}
+		return out;
+		
+	}
+
 
 	// Loads categories from DB
 	async loadCategories(){
@@ -80,6 +90,13 @@ export default class Board extends Autoloader{
 
 	}
 
+	resetPresented(){
+
+		for( let cat of this.categories )
+			cat.presented = false;
+
+	}
+
 	getQuestionByID( id ){
 
 		for( let cat of this.categories ){
@@ -87,6 +104,18 @@ export default class Board extends Autoloader{
 			const out = cat.getQuestionByID(id);
 			if( out )
 				return out;
+
+		}
+
+	}
+
+	getCategoryByQuestionID( id ){
+
+		for( let cat of this.categories ){
+
+			const out = cat.getQuestionByID(id);
+			if( out )
+				return cat;
 
 		}
 

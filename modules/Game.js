@@ -14,10 +14,16 @@ export default class Game extends Autoloader{
 	static Stage = {
 		Board : "Board",
 		Question : "Question",
-		DailyDouble : "DailyDouble",		// waiting for a player to bet
+		DailyDouble : "DailyDouble",							// waiting for a player to bet
 		Final : "Final",
-		DailyDoubleCompleted : "DailyDoubleCompleted",		// Currently showing answer, waiting for enter to show what the wager was and modify score
-		ShowWager : "ShowWager"				// Show wager for active team
+		DailyDoubleCompleted : "DailyDoubleCompleted",			// Currently showing answer, waiting for enter to show what the wager was and modify score
+		ShowWager : "ShowWager",								// Show wager for active team
+		PresentingCategories : "PresentingCategories",
+		FinalQuestionCategory : "FinalQuestionCategory",		// Present final jeopardy category to players
+		FinalQuestion : "FinalQuestion",						// Present final jeopardy question with a timer.
+		FinalQuestionAnswer : "FinalQuestionAnswer",			// Show answer for #answeringTeam
+		FinalQuestionWager : "FinalQuestionWager",				// Show wager for #answeringTeam
+		FinalScore : "FinalScore",								// Show the final score
 	};
 
 	static game;
@@ -102,6 +108,7 @@ export default class Game extends Autoloader{
 		this.draw();
 
 	}
+
 	static isEditMode(){
 		return localStorage._editMode === '1';
 	}
@@ -163,11 +170,13 @@ export default class Game extends Autoloader{
 		new Board()
 	];
 	finalQuestion = new Question();
+	finalQuestionCategory = '';
 
 	// Game data
 	id = crypto.randomUUID();
 	dailyDoubles = new Set();			// Question IDs
 	completedQuestions = new Set();		// Question IDs
+	presentedCategories = new Set();
 	nrDailyDoubles = 1;					// Per board
 	answerTime = 6;						// Seconds to answer
 	questionTime = 30;					// Seconds per question to answer
@@ -183,10 +192,11 @@ export default class Game extends Autoloader{
 	#answerTicks = 0;					// Seconds left for the team that buzzed in to answer
 	#questionTicks = 0;					// Seconds left for a team to buzz in
 	#answerInterval = null;				// Starts when a question is presented
-	#answeringTeam = -1;				// Team that buzzed in (-1 = none) Use getAnsweringTeam()
+	#answeringTeam = -1;				// Team that buzzed in (-1 = none) Use getAnsweringTeam(). In final jeopardy, this is the team we're alternating answers for
 	#questionType = Question.Type.Regular;
 	#activateBuzzersTimeout = null;		// Time before activating buzzers
 	#lastAnswerCorrect = false;			// Used for wagering
+
 
 	teams = [
 		new Team({color:Constants.BUTTON_COLOR.RED}),
@@ -209,9 +219,11 @@ export default class Game extends Autoloader{
 			name : this.name,
 			boards : Board.dumpThese(this.boards),
 			finalQuestion : this.finalQuestion.dump(),
+			finalQuestionCategory : this.finalQuestionCategory,
 			id : this.id,
 			dailyDoubles : Array.from(this.dailyDoubles),
 			completedQuestions : Array.from(this.completedQuestions),
+			presentedCategories : Array.from(this.presentedCategories),
 			activeBoard : this.activeBoard,
 			teams : Team.dumpThese(this.teams),
 			nrDailyDoubles : this.nrDailyDoubles,
@@ -234,6 +246,7 @@ export default class Game extends Autoloader{
 		this.finalQuestion = new Question(this.finalQuestion);
 		this.dailyDoubles = new Set(this.dailyDoubles);
 		this.completedQuestions = new Set(this.completedQuestions);
+		this.presentedCategories = new Set(this.presentedCategories);
 		const promises = this.boards.map(b => b.loadCategories());
 		await Promise.all(promises);
 		this.draw(true);
@@ -251,7 +264,7 @@ export default class Game extends Autoloader{
 	}
 
 
-	async setStage( stage, force = false ){
+	setStage( stage, force = false ){
 
 		if( stage === this.stage && !force )
 			return;
@@ -259,13 +272,13 @@ export default class Game extends Autoloader{
 		this.stage = stage;
 		if( stage === Game.Stage.Board ){
 
-			this.disableAllBuzzers().catch(e => {if( !force ){console.error(e);}});
+			this.disableAllBuzzers();
 			this.setActiveQuestion(false);
 			
 		}
 		else if( stage === Game.Stage.DailyDouble ){
 
-			await this.disableAllBuzzers();
+			this.disableAllBuzzers();
 			const team = this.getAnsweringTeam();
 			const question = this.getActiveQuestion();
 			Game.ui.toggleQuestion(new Question({
@@ -274,7 +287,7 @@ export default class Game extends Autoloader{
 			}));
 			Game.ui.toggleQuestionActive(team);
 			team.setDisplayMode(Team.Displaymode.Numpad);
-			await this.updateDisplays();
+			this.updateDisplays();
 
 		}
 		else if( stage === Game.Stage.ShowWager ){
@@ -299,6 +312,20 @@ export default class Game extends Autoloader{
 		else if( stage === Game.Stage.DailyDoubleCompleted ){
 
 		}
+		else if( stage === Game.Stage.PresentingCategories ){
+
+			const unpresented = this.getUnpresentedCategories();
+			if( !unpresented )
+				return;
+
+			const question = new Question({
+				id : unpresented[0].id,
+				question : unpresented[0].name,
+			});
+			Game.ui.toggleQuestion(question);
+			this.draw();
+
+		}
 
 		this.updateControls();
 
@@ -306,16 +333,44 @@ export default class Game extends Autoloader{
 
 
 	// return true if we captured it
-	async onKeyPress( key ){
+	onKeyPress( key ){
 
-		if( this.stage === Game.Stage.Question ){
+		if( Game.isEditMode() )
+			return;
+
+		if( this.stage === Game.Stage.Board ){
+
+			const unpresented = this.getUnpresentedCategories();
+			if( unpresented.length && key === 'Enter' ){
+				
+				this.setStage(Game.Stage.PresentingCategories);
+				return true;
+
+			}
+			const unanswered = this.activeBoardHasUnAnsweredQuestions();
+			if( !unanswered && key === 'Enter' ){
+				
+				if( this.isOnLastBoard() ){
+					console.log("Todo: Show final category");
+				}
+				else{
+					this.advanceBoard();
+					this.updateControls();
+				}
+
+			}
+
+		}
+
+		else if( this.stage === Game.Stage.Question ){
 			
 			// Question has been answered
 			if( !this.#activeQuestion ){
 
-				if( key === 'Enter' )
+				if( key === 'Enter' ){
 					this.setStage(Game.Stage.Board); // Emulate clicking outside of overlay
-
+					return true;
+				}
 			}
 			else if( key === 'Enter' ){
 				this.stopAnswerInterval();
@@ -335,21 +390,46 @@ export default class Game extends Autoloader{
 			if( key === 'Enter' && !team.buzzerEnabled ){ // buzzerEnabled is set to false when they send in their bet
 				
 				const question = this.getActiveQuestion();
-				await this.setActiveQuestion(question, Question.Type.Regular);
+				this.setActiveQuestion(question, Question.Type.Regular);
+				return true;
 
 			}
 
 		}
 		else if( this.stage === Game.Stage.DailyDoubleCompleted ){
 
-			if( key === 'Enter' )
+			if( key === 'Enter' ){
 				this.setStage(Game.Stage.ShowWager);
+				return true;
+			}
 
 		}
 		else if( this.stage === Game.Stage.ShowWager ){
 
-			await this.setStage(Game.Stage.Board);
+			this.setStage(Game.Stage.Board);
 			this.draw();
+			return true;
+
+		}
+		else if( this.stage === Game.Stage.PresentingCategories ){
+
+			if( key === 'Enter' ){
+
+				let unpresented = this.getUnpresentedCategories();
+				this.presentedCategories.add(unpresented[0].id);
+				unpresented.shift();
+				if( !unpresented.length ){
+					this.setStage(Game.Stage.Board);
+					this.draw();
+				}
+				else{
+					this.setStage(Game.Stage.PresentingCategories, true);
+				}
+				this.save();
+
+				return true;
+				
+			}
 
 		}
 
@@ -367,7 +447,7 @@ export default class Game extends Autoloader{
 		
 
 	}
-	async onSerialRemoteConnect( teamColor, connected = true ){
+	onSerialRemoteConnect( teamColor, connected = true ){
 
 		const team = this.getTeamByColor(teamColor);
 		if( !team )
@@ -378,8 +458,8 @@ export default class Game extends Autoloader{
 			team.active = true;
 		this.draw();
 
-		await this.updateDisplay(team);
-		await this.updateBuzzer(team);
+		this.updateDisplay(team);
+		this.updateBuzzer(team);
 
 	}
 	onRemoteButton( teamColor ){
@@ -399,7 +479,7 @@ export default class Game extends Autoloader{
 		
 
 	}
-	async onRemoteText( teamColor, text ){
+	onRemoteText( teamColor, text ){
 
 		const team = this.getTeamByColor(teamColor);
 		if( !team )
@@ -418,8 +498,8 @@ export default class Game extends Autoloader{
 				team.buzzerEnabled = false;
 				team.lastNumber = amount;
 				team.setDisplayMode(Team.Displaymode.Score);
-				await this.updateDisplay(team);
-				await this.updateBuzzer(team);
+				this.updateDisplay(team);
+				this.updateBuzzer(team);
 				this.updateControls();
 
 			}
@@ -434,8 +514,12 @@ export default class Game extends Autoloader{
 	// Events from UI
 	onQuestionClicked( question ){
 
-		if( Game.isEditMode() )
-			Game.ui.showQuestionEditor(question);
+		if( Game.isEditMode() ){
+			
+			const category = this.getActiveBoard().getCategoryByQuestionID(question.id);
+			Game.ui.showQuestionEditor(category, question);
+
+		}
 		else{
 			
 			let type = Question.Type.Regular;
@@ -613,6 +697,10 @@ export default class Game extends Autoloader{
 
 		}
 
+		for( let board of this.boards ){
+			board.resetPresented();
+		}
+
 		if( viableStartTeams.length > 0 )
 			this.categoryTeam = Game.randElem(viableStartTeams);
 
@@ -652,6 +740,27 @@ export default class Game extends Autoloader{
 		clearTimeout(this.#saveTimer);
 		this.#saveTimer = setTimeout(() => Game.saveGame(this), 500);
 	}
+
+	getUnpresentedCategories(){
+
+		let out = [];
+		const board = this.getActiveBoard();
+		if( !board )
+			return out;
+
+		for( let cat of board.categories ){
+
+			if( !this.presentedCategories.has(cat.id) )
+				out.push(cat);
+
+		}
+		return out;
+
+	}
+
+	isOnLastBoard(){
+		return this.activeBoard >= this.boards.length-1;
+	}
 	
 	getCategoryPickingTeam(){
 
@@ -681,6 +790,21 @@ export default class Game extends Autoloader{
 		
 		const board = this.getActiveBoard();
 		return board.getQuestionByID(this.#activeQuestion);
+
+	}
+
+	hasFinalQuestion(){
+		return this.finalQuestion.isValid() && this.finalQuestionCategory;
+	}
+
+	activeBoardHasUnAnsweredQuestions(){
+
+		const questions = this.getActiveBoard().getAllQuestions();
+		for( let q of questions ){
+			if( !this.completedQuestions.has(q.id) )
+				return true;
+		}
+		return false;
 
 	}
 
@@ -720,7 +844,7 @@ export default class Game extends Autoloader{
 
 	// Asks a question
 	// Type can either be Question.Type.* or undefined if we shouldn't modify the type
-	async setActiveQuestion( question, type ){
+	setActiveQuestion( question, type ){
 
 		if( question === false ){
 			this.#activeQuestion = '';
@@ -749,21 +873,21 @@ export default class Game extends Autoloader{
 		if( type === Question.Type.DailyDouble ){
 
 			const team = this.getCategoryPickingTeam();
-			await this.setAnsweringTeam(team);
-			await this.setStage(Game.Stage.DailyDouble);
+			this.setAnsweringTeam(team);
+			this.setStage(Game.Stage.DailyDouble);
 			team.buzzerEnabled = true;		// Allows team to answer
 
 		}
 		// This is also called on a daily double, once the team has made a bet
 		else{
 			
-			await this.setStage(Game.Stage.Question);
+			this.setStage(Game.Stage.Question);
 			Game.ui.toggleQuestion(question);
-			await this.updateControls();
+			this.updateControls();
 
 			if( isDailyDouble ){
 				const team = this.getCategoryPickingTeam();
-				await this.setAnsweringTeam(team);
+				this.setAnsweringTeam(team);
 			}
 			else{
 				this.#activateBuzzersTimeout = setTimeout(() => {
@@ -793,6 +917,19 @@ export default class Game extends Autoloader{
 		this.draw();
 		this.save();
 
+	}
+
+	// used to debug transitions
+	setAllQuestionsCompleted(){
+
+		const all = this.getActiveBoard().getAllQuestions();
+		for( let q of all )
+			this.completedQuestions.add(q.id);
+
+		this.draw();
+		this.updateControls();
+		this.save();
+		
 	}
 
 	isActiveQuestionCompleted( id ){
@@ -869,47 +1006,47 @@ export default class Game extends Autoloader{
 
 
 	// Updates buzzers on the board. Teams can be a boolean true (all), false (none), or an array of team colors
-	async updateBuzzers(){
+	updateBuzzers(){
 		
 		let enabledTeams = this.getTeamsThatCanAnswer();
 		if( enabledTeams.length === this.teams.length )
-			await Game.Serial.taskToggleButton(Constants.BUTTON_COLOR.ALL, true);
+			Game.Serial.taskToggleButton(Constants.BUTTON_COLOR.ALL, true);
 		else if( !enabledTeams.length )
-			await Game.Serial.taskToggleButton(Constants.BUTTON_COLOR.ALL, false);
+			Game.Serial.taskToggleButton(Constants.BUTTON_COLOR.ALL, false);
 		else{
 			let order = Game.shuffle(this.teams.slice());
 			for( let team of order )
-				await this.updateBuzzer(team);
+				this.updateBuzzer(team);
 
 		}
 
 	}
 
-	async updateBuzzer( team ){
+	updateBuzzer( team ){
 		if( !team.connected )
 			return false;
-		await Game.Serial.taskToggleButton(team.color, team.buzzerEnabled);	
+		return Game.Serial.taskToggleButton(team.color, team.buzzerEnabled);	
 	}
 
-	async enableAllBuzzers(){
+	enableAllBuzzers(){
 		this.teams.forEach(team => team.buzzerEnabled = true);
 		return this.updateBuzzers();
 	}
 
-	async disableAllBuzzers(){
+	disableAllBuzzers(){
 		this.teams.forEach(team => team.buzzerEnabled = false);
 		return this.updateBuzzers();
 	}
 
-	async updateDisplays(){
+	updateDisplays(){
 		
 		for( let team of this.teams )
-			await this.updateDisplay(team);
+			this.updateDisplay(team);
 
 		
 	}
 
-	async updateDisplay( team ){
+	updateDisplay( team ){
 
 		if( !team.connected )
 			return;
@@ -920,51 +1057,66 @@ export default class Game extends Autoloader{
 			let text = '';
 			if( dm === Team.Displaymode.Score )
 				text = team.score;
-			await Game.Serial.taskShowText(team.color, 0, 0xFFFFFF, text);
+			Game.Serial.taskShowText(team.color, 0, 0xFFFFFF, text);
 
 		}
 		else if( dm === Team.Displaymode.Numpad ){
 
 			const maxVal = Math.max(2000, team.score);
-			await Game.Serial.taskShowNumpad(team.color, 0, 0xFFFFFF, maxVal, "Enter your bet [max "+maxVal+"]:"); // Todo: Configure min bet
+			Game.Serial.taskShowNumpad(team.color, 0, 0xFFFFFF, maxVal, "Enter your bet [max "+maxVal+"]:"); // Todo: Configure min bet
 
 		}
 		else if( dm === Team.Displaymode.Keyboard ){
 			
-			await Game.Serial.taskShowKeyboard(team.color, 0, 0xFFFFFF, 100, "Your Answer:");
+			Game.Serial.taskShowKeyboard(team.color, 0, 0xFFFFFF, 100, "Your Answer:");
 
 		}
 
 	}
 
 	// Sets all displays to show the current score
-	async setAllDisplaysScore(){
+	setAllDisplaysScore(){
 		this.teams.map(el => el.setDisplayMode(Team.Displaymode.Score));
-		await this.updateDisplays();
+		this.updateDisplays();
 	}
 
-	async setAllDisplaysNumpad(){
+	setAllDisplaysNumpad(){
 		this.teams.map(el => el.setDisplayMode(Team.Displaymode.Numpad));
-		await this.updateDisplays();
+		this.updateDisplays();
 	}
 
-	async setAllDisplaysKeyboard(){
+	setAllDisplaysKeyboard(){
 		this.teams.map(el => el.setDisplayMode(Team.Displaymode.Keyboard));
-		await this.updateDisplays();
+		this.updateDisplays();
 	}
 
-	async setDisplayNumpad( team ){
+	setDisplayNumpad( team ){
 		team.setDisplayMode(Team.Displaymode.Numpad);
-		await this.updateDisplays();
+		this.updateDisplays();
 	}
 
 
 
-	// Updates the controls display
+	// Updates the controls display in the top right corner
 	updateControls(){
 
 		let controls = [];
-		if( this.stage === Game.Stage.Question ){
+		if( this.stage === Game.Stage.Board ){
+			
+			const unpresented = this.getUnpresentedCategories();
+			if( unpresented.length )
+				controls.push('Enter: Reveal boards');
+			else if( !this.activeBoardHasUnAnsweredQuestions() ){
+				
+				if( this.isOnLastBoard() )
+					controls.push('Enter: Final Question');
+				else
+					controls.push('Enter: Next Board');				
+
+			}
+			
+		}
+		else if( this.stage === Game.Stage.Question ){
 
 			if( !this.getActiveQuestion() ){
 				controls.push(
@@ -994,6 +1146,9 @@ export default class Game extends Autoloader{
 		}
 		else if( this.stage === Game.Stage.DailyDoubleCompleted ){
 			controls.push('Enter: Show Wager');
+		}
+		else if( this.stage === Game.Stage.PresentingCategories ){
+			controls.push('Enter: Continue');
 		}
 		Game.ui.setControls(...controls);
 
