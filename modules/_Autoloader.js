@@ -22,7 +22,7 @@ export default class Autoloader{
 					v = Number(v);
 				else if( wantType === "boolean" )
 					v = Boolean(v);
-				else{
+				else if( wantType !== "undefined" ){
 					console.error("Unable to cast", wantType, "to", gotType, "for", i);
 					continue;
 				}
@@ -37,7 +37,7 @@ export default class Autoloader{
 		}
 
 		if( this.onLoaded )
-			this.onLoaded();
+			this.onLoaded(data);
 
 	}
 

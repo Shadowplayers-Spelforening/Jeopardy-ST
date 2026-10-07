@@ -201,7 +201,6 @@ export default class UI{
 
 			const span = document.createElement('span');
 			div.append(span);
-			span.contentEditable = editMode;
 			span._resize = () => {
 
 				const vmin = Math.min(window.innerWidth, window.innerHeight);
@@ -227,7 +226,10 @@ export default class UI{
 			titleSpan = span;
 
 		}
-		colDiv.childNodes[0].childNodes[0].innerText = this.game.presentedCategories.has(category.id) || editMode ? category.name : '???';
+
+		const span = colDiv.childNodes[0].childNodes[0];
+		span.innerText = this.game.presentedCategories.has(category.id) || editMode ? category.name : '???';
+		span.contentEditable = editMode;
 		colDiv.childNodes[0].classList.toggle('hidden', false);
 
 		for( let i = 0; i < questions.length; ++i ){

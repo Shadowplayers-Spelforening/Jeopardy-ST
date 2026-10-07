@@ -23,6 +23,14 @@ export default class Serial{
 	static SUFFIX = "</SPBUZ>";
 	static BAUD_RATE = 115200;
 
+	static delay( ms = 1000 ){
+
+		return new Promise(res => {
+			setTimeout(res, ms);
+		});
+
+	}
+
 	keepReading = true;
 	reader = null;
 	connectRes = null;
@@ -36,8 +44,7 @@ export default class Serial{
 	readingLoop = null;
 	serialAbortController = null;
 	readableStreamClosed = null;
-	queue = '';
-	sending = false;
+	queuedTasks = [];
 
 	constructor(){
 		
@@ -213,7 +220,7 @@ export default class Serial{
 				clearTimeout(this.serialTimeout);
 				this.buffer += value;
 				this.serialTimeout = setTimeout(() => {
-					console.log("[SIN]", this.buffer);
+					console.log("[SERIAL] <<< ", this.buffer);
 					this.handleSerialBuffer();
 				}, 10);
 				
@@ -287,29 +294,52 @@ export default class Serial{
 	onRemoteConnect(color){ console.log("Connected to color", color); }
 	onRemoteDisconnect(color){ console.log("Disconnected from color", color); }
 
-	async runTask(task, ...args){
 
-		if( !this.port || !this.port.writable ){
-			console.warn("Serial port is not connected");
-			return;
+	// returns the task's promise
+	runTask( task, ...args ){
+
+		const execImmediate = !this.queuedTasks.length;
+		const taskObj = new Task(task, args);
+		this.queuedTasks.push(taskObj);
+		if( execImmediate ){
+			this.advanceQueue();
 		}
+		return taskObj.promise;
 
-		let message = Serial.PREFIX + JSON.stringify([task, ...args]) + Serial.SUFFIX;
-		this.queue = message;
-		if( this.sending )
-			return;
-		
-		this.sending = true;
-		const encoded = new TextEncoder().encode(this.queue);
-		console.log("[Serial] Sending ", this.queue);
-		this.writer = this.port.writable.getWriter();
-		try{
-			this.queue = '';
-			await this.writer.write(encoded);
-		}finally{
-			this.sending = false;
+	}
+
+	async advanceQueue(){
+
+		console.log("Queue", this.queuedTasks);
+		while( this.queuedTasks.length ){
+			
+			if( !this.port || !this.port.writable ){
+				console.warn("Serial port is not connected, retrying in 5 seconds");
+				await Serial.delay(5000);
+				continue;
+			}
+
+			const nextTask = this.queuedTasks[0];
+			console.log("Running task", nextTask);
+
+			let message = Serial.PREFIX + JSON.stringify([nextTask.task, ...nextTask.args]) + Serial.SUFFIX;
+			const encoded = new TextEncoder().encode(message);
+
+			console.log("[SERIAL] >>> ", message);
+			
+			this.writer = this.port.writable.getWriter();
+			
+			try{
+				await this.writer.write(encoded);
+			}catch(e){
+				console.warn("Serial writer failed", e);
+			}
+
 			this.writer.releaseLock();
 			this.writer = null;
+			nextTask.res();
+			this.queuedTasks.shift();
+
 		}
 
 	}
@@ -318,9 +348,33 @@ export default class Serial{
 	taskToggleButton( button, enable ){ return this.runTask(Serial.SIN_TOGGLE_BUTTON, button, enable); }
 	taskShowText( button, background, textColor, text ){ return this.runTask(Serial.SIN_SHOW_TEXT, button, background, textColor, String(text)); };
 	taskShowKeyboard( button, background, textColor, maxLength, text ){ return this.runTask(Serial.SIN_SHOW_KEYBOARD, button, background, textColor, maxLength, String(text)); };
-	taskGetText( button ){ return this.runTask(Serial.SIN_GET_TEXT, button); };
-	taskShowNumpad( button, background, textColor, maxValue, text ){ return this.runTask(Serial.SIN_SHOW_NUMPAD, button, background, textColor, maxValue, String(text)); };
+	taskGetText( button ){ 
+		return this.runTask(Serial.SIN_GET_TEXT, button); 
+	};
+	taskShowNumpad( button, background, textColor, maxValue, text ){ 
+		return this.runTask(Serial.SIN_SHOW_NUMPAD, button, background, textColor, maxValue, String(text)); 
+	};
 	taskGetConnected(){ return this.runTask(Serial.SIN_GET_CONNECTED); };
+
+};
+
+class Task{
+
+	promise;
+	res;
+	task = 0;
+	args = [];
+
+	constructor( task, args ){
+
+		this.promise = new Promise((res, rej) => {
+			this.res = res;
+		});
+
+		this.task = task;
+		this.args = args;
+
+	}
 
 }
 
