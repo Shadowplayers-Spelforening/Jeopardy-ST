@@ -1,4 +1,3 @@
-import Game from "../Game.js";
 import Question from "../Question.js";
 import State from "../State.js";
 import Team from "../Team.js";
@@ -7,47 +6,62 @@ import Team from "../Team.js";
 export default () => {
 	
 	const out = new State({
-		id : 'dailyDouble',  saveable : true,
+		id : 'presentingFinalQuestion', saveable : true,
 	});
 
 	out.addKeyBinding(
-		'Enter', 'Show Question',
+		'Enter', 'Continue',
 		function(){
 
 			const game = this.game;
-			game.setState('question');		// the question itself is already set, so we can just go ahead and switch to question
+			game.setActiveQuestion(game.finalQuestion, Question.Type.Final);
+			game.setState('question');
+			
 			return true;
 
 		},
-		function(){ 
-			const team = this.game.getAnsweringTeam();
-			return team && !team.buzzerEnabled;  // buzzerEnabled is set to false when they send in their bet
+		function(){
+			return this.hasAllWagers();
 		},
 	);
-	
+
+	out.hasAllWagers = function(){
+		
+		const game = this.game;
+		return game.teams.every( team => !team.active || team.lastNumber > 0 );
+
+	};
 
 	out.onStateEntry = async function(){
-		
 		const game = this.game;
 
-		game.disableAllBuzzers();
-		const team = game.getAnsweringTeam();
-		team.buzzerEnabled = true;
-		const question = game.getActiveQuestion();
-		Game.ui.toggleQuestion(new Question({
-			id : question.id,
-			question : "Daily Double!"
-		}));
-		Game.ui.toggleQuestionActive(team);
-		team.setDisplayMode(Team.Displaymode.Numpad);
-		game.updateDisplays();
+		const question = new Question({
+			id : 'finalQuestionCategory',
+			question : game.finalQuestionCategory,
+		});
+		Game.ui.toggleQuestion(question);
 		
+		for( let team of game.teams ){
+
+			team.lastNumber = 0;
+			team.buzzerEnabled = true;
+			team.setDisplayMode(Team.Displaymode.Numpad);
+
+		}
+
+		game.setAnsweringTeam(false);
+		game.draw();
+		game.updateDisplays();
 
 	};
+
+
 	out.onStateExit = async function(){
 		const game = this.game;
-
+		
+			
 	};
+
 
 	out.onRemoteText = async function( teamColor, text ){
 		
@@ -57,11 +71,9 @@ export default () => {
 			return;
 
 		const amount = parseInt(text) || 0;
-		const answeringTeam = game.getAnsweringTeam();
 
 		if( 
-			answeringTeam === team &&
-			team.buzzerEnabled &&
+			!team.lastNumber &&
 			amount > 0 &&
 			(amount <= game.minWager || amount <= answeringTeam.score)
 		){

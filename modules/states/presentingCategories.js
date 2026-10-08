@@ -4,7 +4,7 @@ import State from "../State.js";
 export default () => {
 	
 	const out = new State({
-		id : 'presentingCategories',
+		id : 'presentingCategories', saveable : true,
 	});
 
 	out.addKeyBinding(

@@ -4,14 +4,29 @@ import State from "../State.js";
 export default () => {
 	
 	const out = new State({
-		id : 'showWager',
+		id : 'showWager', saveable : true,
 	});
 
 	out.addKeyBinding(
 		'Enter', 'Continue',
 		function(){
-			this.game.setState('board');
+			
+			const game = this.game;
+			if( game.isFinalQuestion() ){
+				
+				const nextTeam = game.getUnrevealedFinalAnswerTeam();
+				if( nextTeam )
+					this.game.setState('finalQuestionShowTeam');
+				else
+					this.game.setState('scoreboard');
+				
+			}
+			else{
+				this.game.setState('board');
+			}
+			
 			return true;
+
 		},
 		function(){ return true; },
 	);
@@ -19,7 +34,10 @@ export default () => {
 	out.onStateEntry = async function(){
 		
 		const game = this.game;
-		const team = game.getCategoryPickingTeam();
+		let team = game.getCategoryPickingTeam();
+		if( game.isFinalQuestion() )
+			team = game.getAnsweringTeam();
+
 		let num = parseInt(team.lastNumber) || 0;
 		const question = new Question({
 			question : String(num),

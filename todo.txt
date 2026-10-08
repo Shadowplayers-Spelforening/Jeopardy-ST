@@ -2,10 +2,7 @@
 
 [Viewer]
 - Final question
-- Show score on buttons
-
-Split the game into board state objects that manage what they should do
-
+- Daily double should show wager
 
 Later:
 - Configure game settings

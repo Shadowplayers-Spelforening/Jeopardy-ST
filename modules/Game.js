@@ -192,6 +192,7 @@ export default class Game extends Autoloader{
 	//stage = Game.Stage.Board;
 	state = null;						// Current state label
 	states = null;						// Sates loaded from /modules/states. Unique to the game.
+	lastSaveableState = 'board';		// Load this state on game start
 
 	categoryTeam = 0;					// Team that's picking category. This is updated on question correct.
 	minWager = 2000;					// Minimum max wager you can pick on finale or daily double
@@ -239,7 +240,8 @@ export default class Game extends Autoloader{
 			teams : Team.dumpThese(this.teams),
 			nrDailyDoubles : this.nrDailyDoubles,
 			categoryTeam : this.categoryTeam,
-			stateData
+			stateData,
+			lastSaveableState : this.lastSaveableState,
 		};
 
 		return out;
@@ -278,9 +280,11 @@ export default class Game extends Autoloader{
 		const promises = this.boards.map(b => b.loadCategories());
 		await Promise.all(promises);
 		
-		
-		if( !this.state )
+		if( this.lastSaveableState )
+			this.setState(this.lastSaveableState);
+		else
 			this.setState("board");
+
 		this.draw(true);
 
 	}
@@ -414,6 +418,9 @@ export default class Game extends Autoloader{
 
 		await state.execStateEntry();
 		state.updateControls();
+
+		if( state.saveable )
+			this.lastSaveableState = id;
 
 		this.save();
 		this.draw();
@@ -635,6 +642,7 @@ export default class Game extends Autoloader{
 
 	}
 
+
 	// Sets all displays to show the current score
 	setAllDisplaysScore(){
 		this.teams.map(el => el.setDisplayMode(Team.Displaymode.Score));
@@ -654,6 +662,22 @@ export default class Game extends Autoloader{
 	setDisplayNumpad( team ){
 		team.setDisplayMode(Team.Displaymode.Numpad);
 		this.updateDisplays();
+	}
+
+	// fires onRemoteText. Returns a promise which resolves when we have made all requests, not when we have all responses!
+	async getAllTexts(){
+
+		const promises = [];
+		for( let team of this.teams ){
+			
+			if( !team.active )
+				continue;
+			promises.push(Game.Serial.taskGetText(team.color));
+
+		}
+		
+		return Promise.all(promises);
+
 	}
 
 
@@ -732,13 +756,29 @@ export default class Game extends Autoloader{
 
 
 	}
+	// we use lastText to check if a team has been revealed yet
+	getUnrevealedFinalAnswerTeam(){
 
+		for( let team of this.teams ){
+
+			if( !team.active )
+				continue;
+
+			if( team.lastText )
+				return team;
+
+		}
+
+	}
 
 
 
 	/* QUESTION MANAGEMENT */
 	getActiveQuestion(){
 		
+		if( this.activeQuestionType === Question.Type.Final )
+			return this.finalQuestion;
+
 		const board = this.getActiveBoard();
 		return board.getQuestionByID(this.activeQuestion);
 
@@ -834,6 +874,7 @@ export default class Game extends Autoloader{
 	isQuestionDailyDouble( question ){ return this.dailyDoubles.has(question.id); }
 
 
+	isFinalQuestion(){ return this.activeQuestionType === Question.Type.Final; }
 
 
 

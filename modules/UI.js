@@ -24,6 +24,7 @@ export default class UI{
 	modalContent = document.getElementById('modalContent');
 	status = document.getElementById('status');
 	controls = document.querySelector('#controls > ul');
+	scoreboard = document.getElementById('scoreboard');
 
 	constructor(){
 
@@ -52,6 +53,8 @@ export default class UI{
 				event.preventDefault();
 			}
 		});
+
+		this.toggleScoreBoard(false);
 
 	}
 
@@ -342,6 +345,38 @@ export default class UI{
 
 		this.status.replaceChildren(ul);
 		
+	}
+
+	toggleScoreBoard( on = false ){
+
+		this.scoreboard.classList.toggle('hidden', !on);
+
+		if( !on )
+			return;
+
+		const table = document.createElement('table');
+		this.scoreboard.replaceChildren(table);
+
+		const teams = this.game.teams.filter(team => team.active);
+		teams.sort((a,b) => b.score - a.score);
+		for( const team of teams ){
+			
+			const tr = document.createElement('tr');
+
+			tr.classList.remove(...Constants.BUTTON_ENUM);
+			tr.classList.add(team.getColorLabel());
+
+			table.append(tr);
+			const td = document.createElement('td');
+			tr.append(td);
+			td.innerText = team.name;
+			const td2 = document.createElement('td');
+			tr.append(td2);
+			td2.innerText = team.score;
+
+		}
+
+
 	}
 
 	// Static modals

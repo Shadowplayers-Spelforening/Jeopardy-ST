@@ -1,5 +1,6 @@
 import Question from "../Question.js";
 import State from "../State.js";
+import Team from "../Team.js";
 
 // Build a state. Link it to the game via State.Prototypes
 export default () => {
@@ -11,6 +12,7 @@ export default () => {
 	out.answerTicks = 0;		// Seconds left for the team to answer
 	out.questionTicks = 0;		// Seconds left for a team to buzz in
 	
+	out.finalQuestionForceTimeout = null;	// Allows host to force revealing scores even if we didn't receive an answer
 	out.activateBuzzersTimeout = null;
 	out.answerInterval = null;	// Interval starts when any question is presented
 
@@ -38,6 +40,19 @@ export default () => {
 		},
 		function(){ return this.game.getActiveQuestion() && this.game.getAnsweringTeam(); },
 	);
+
+	// Correct
+	out.addKeyBinding('Enter', 'Player Answers',
+		function(){
+			this.game.setState('finalQuestionShowTeam');
+		},
+		function(){ 
+			return (
+				this.isFinalQuestion() &&
+				this.allTeamsHaveSuppliedText() || !this.answerTicks
+			); 
+		},
+	);
 	
 	
 
@@ -59,10 +74,15 @@ export default () => {
 
 		Game.ui.toggleQuestion(game.getActiveQuestion(), false);
 
-		console.log(game.activeQuestionType);
 		// Immediately start the team answer timer
-		if( game.activeQuestionType === Question.Type.DailyDouble )
+		if( game.activeQuestionType !== Question.Type.Regular )
 			this.activateActiveTeamAnswerCountdown();
+
+		if( this.isFinalQuestion() ){
+
+			game.setAllDisplaysKeyboard();
+			
+		}
 			
 
 	};
@@ -70,16 +90,21 @@ export default () => {
 
 		const game = this.game;
 		this.stopAnswerInterval();
+		clearTimeout(this.finalQuestionForceTimeout);
 		clearTimeout(this.activateBuzzersTimeout);
 
 	};
 
-	// marks a team as "answering", coloring the answer box and starting the player timer
+	// colors the answer box to active team (if supplied) and starts the visual timer
 	out.activateActiveTeamAnswerCountdown = function(){
 
-		Game.ui.toggleQuestionActive(this.game.getAnsweringTeam());
+		const team = this.game.getAnsweringTeam();
+
+		Game.ui.toggleQuestionActive( team || true );
+
 		const aTime = this.getAnswerTime();
 		this.answerTicks = aTime;
+
 		Game.ui.setQuestionTimeLeft(aTime, aTime);
 		this.updateControls();
 
@@ -104,9 +129,13 @@ export default () => {
 	};
 
 	out.getAnswerTime = function(){
+
 		if( this.game.activeQuestionType === Question.Type.Regular )
 			return this.game.answerTime;
+		if( this.isFinalQuestion() )
+			return 60;
 		return 30;
+
 	};
 
 	// this.setActiveQuestionCompleted();
@@ -121,7 +150,8 @@ export default () => {
 		this.answerInterval = setInterval(() => {
 			
 			const answeringTeam = game.getAnsweringTeam();
-			if( answeringTeam ){
+			// Ticks down player answer time (or final question time)
+			if( answeringTeam || this.isFinalQuestion() ){
 
 				if( !(--this.answerTicks) )
 					this.onAnswerTimedOut();
@@ -129,6 +159,7 @@ export default () => {
 				Game.ui.setQuestionTimeLeft(this.answerTicks, this.getAnswerTime());
 
 			}
+			// Ticks down waiting for a player to buzz in
 			else if( game.activeQuestionType === Question.Type.Regular ){
 				
 				if( !(--this.questionTicks) )
@@ -235,9 +266,58 @@ export default () => {
 
 	};
 
+	out.isFinalQuestion = function(){ return this.game.isFinalQuestion(); };
+
 	// Player has buzzed in and the answer time has run out. We need to wait for the judge.
+	// This also calls at the end of the final question
 	out.onAnswerTimedOut = function(){
 		this.stopAnswerInterval();
+
+		if( this.isFinalQuestion() ){
+
+			// Request texts from the teams
+			this.game.getAllTexts();
+			this.finalQuestionForceTimeout = setTimeout(() => {
+				
+				for( let team of this.game.teams ){
+					if( !team.lastText )
+						team.lastText = '...';
+				}
+				this.updateControls();
+
+			}, 5000);
+
+		}
+
+	};
+
+	out.allTeamsHaveSuppliedText = function(){
+
+		return this.game.teams.every(team => !team.active || team.lastText);
+
+	};
+
+	// text received from buzzer
+	out.onRemoteText = async function( teamColor, text ){
+			
+		const game = this.game;
+		if( !this.isFinalQuestion() )
+			return;
+
+		const team = game.getTeamByColor(teamColor);
+		if( !team )
+			return;
+
+		team.lastText = String(text).trim();
+
+		this.updateControls();
+		if( this.allTeamsHaveSuppliedText() ){
+			
+			this.stopAnswerInterval();
+			Game.ui.toggleQuestionActive(false);
+
+		}
+
 	};
 
 	return out;

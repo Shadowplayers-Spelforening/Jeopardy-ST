@@ -195,11 +195,11 @@ form{
 	box-shadow: 0 0 2vmin #FFF;
 	
 }
-#questionContent.RED, #teams > div.RED{ border-color:#FFAAAA; color:#FFAAAA; background-color:#663333; }
-#questionContent.YELLOW, #teams > div.YELLOW{ border-color:#FFFFAA; color:#FFFFAA; background-color:#666633; }
-#questionContent.GREEN, #teams > div.GREEN{ border-color:#AAFFAA; color:#AAFFAA; background-color:#336633; }
-#questionContent.BLUE, #teams > div.BLUE{ border-color:#AAAAFF; color:#AAAAFF; background-color:#333366; }
-#questionContent.WHITE, #teams > div.WHITE{ border-color:#FFFFFF; color:#FFFFFF; background-color:#666666; }
+#questionContent.RED, #teams > div.RED, tr.RED{ border-color:#FFAAAA; color:#FFAAAA; background-color:#663333; }
+#questionContent.YELLOW, #teams > div.YELLOW, tr.YELLOW{ border-color:#FFFFAA; color:#FFFFAA; background-color:#666633; }
+#questionContent.GREEN, #teams > div.GREEN, tr.GREEN{ border-color:#AAFFAA; color:#AAFFAA; background-color:#336633; }
+#questionContent.BLUE, #teams > div.BLUE, tr.BLUE{ border-color:#AAAAFF; color:#AAAAFF; background-color:#333366; }
+#questionContent.WHITE, #teams > div.WHITE, tr.WHITE{ border-color:#FFFFFF; color:#FFFFFF; background-color:#666666; }
 #teams > div > div.name{ font-style: italic; }
 #teams > div > div.score{ font-weight: bold; }
 
@@ -310,4 +310,38 @@ table.listing tr.active{
 }
 
 
+#scoreboard{
+
+	position:fixed;
+	top:15vmin; left:0; right:0; bottom:15vmin;
+	background:rgba(0,0,0,.5);
+	backdrop-filter: blur(1vmin);
+	color: #FFF;
+	text-shadow: 0.1vmin 0.1vmin 0.5vmin #000;
+	font-size:2.5vmin;
+	display:flex;
+	justify-content: center;
+	align-items: center;
+}
+
+#scoreboard table{
+	font-size:6vmin;
+	border-collapse: collapse;
+}
+#scoreboard table tr{
+	opacity: 0.5;
+	border: 1px dotted #FFF;
+	border-left:none;
+	border-right:none;
+}
+#scoreboard table tr:first-child{
+	font-weight: bold;
+	opacity: 1;
+}
+#scoreboard table td{
+	padding: 1vmin 10vmin;
+}
+#scoreboard table td:nth-child(2){
+	text-align: right;
+}
 

@@ -11,6 +11,10 @@ export default class State extends Autoloader {
 		dailyDoubleCompleted : null,
 		question : null,
 		showWager : null,
+		presentingFinalQuestion : null,
+		finalQuestionShowTeamAnswer : null,
+		finalQuestionShowTeam : null,
+		scoreboard : null,
 	};
 
 	static async begin(){
@@ -48,6 +52,7 @@ export default class State extends Autoloader {
 	}
 	
 	id = '';
+	saveable = false;		// return to this state on refresh
 	keybindings = [];
 	game = null;
 	cdata = {};				// custom saveable data. must be json serializable
@@ -88,7 +93,7 @@ export default class State extends Autoloader {
 	getSaveData(){
 
 		let out = {
-			cdata : structuredClone(this.cdata)
+			cdata : structuredClone(this.cdata),
 		};
 		return out;
 

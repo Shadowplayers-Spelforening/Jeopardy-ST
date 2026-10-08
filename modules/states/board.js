@@ -4,7 +4,7 @@ import State from "../State.js";
 export default () => {
 	
 	const out = new State({
-		id : 'board',
+		id : 'board', saveable : true,
 	});
 
 	out.addKeyBinding(
@@ -16,9 +16,9 @@ export default () => {
 		function(){ return this.game.getUnpresentedCategories().length; },
 	);
 	out.addKeyBinding(
-		'Enter', 'Final Question',
+		'Enter', 'Final Jeopardy Category',
 		function(){
-			console.log("Todo: draw final question");
+			this.game.setState("presentingFinalQuestion");
 		},
 		function(){ 
 			return (
@@ -36,6 +36,8 @@ export default () => {
 		},
 		function(){ return !this.game.activeBoardHasUnAnsweredQuestions() && !this.game.isOnLastBoard(); },
 	);
+	
+
 	
 	
 
