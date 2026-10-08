@@ -52,6 +52,7 @@ export default class State extends Autoloader {
 	}
 	
 	id = '';
+	label = '';
 	saveable = false;		// return to this state on refresh
 	keybindings = [];
 	game = null;
@@ -66,14 +67,14 @@ export default class State extends Autoloader {
 		this.game = game;
 	}
 
-
+	
 
 	// Overridable. Don't call directly, call via exec
 	async onStateEntry(){}
 	async onStateExit(){}
 	async onRemoteButton( teamColor ){}
 	async onRemoteText( teamColor, text ){}
-
+	onGetLabel(){}
 
 	// built in
 	async execStateEntry(){
@@ -85,9 +86,14 @@ export default class State extends Autoloader {
 	async execRemoteButton( teamColor ){
 		return this.onRemoteButton(teamColor);
 	}
-
 	async execRemoteText( teamColor, text ){
 		return this.onRemoteText(teamColor, text);
+	}
+	execGetLabel(){
+		let out = this.onGetLabel();
+		if( !out )
+			out = this.label;
+		return out;
 	}
 
 	getSaveData(){
@@ -107,14 +113,16 @@ export default class State extends Autoloader {
 	
 	async onKeyPress( key ){
 
+		let out = false;
 		for( let binding of this.keybindings ){
 
 			if( binding.validate(key) && binding.conditionfn.call(this, key) ){
-				await binding.fn.call(this, key);
+				out = await binding.fn.call(this, key);
 				break;
 			}
 
 		}
+		return out;
 
 	}
 

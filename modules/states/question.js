@@ -7,6 +7,7 @@ export default () => {
 	
 	const out = new State({
 		id : 'question',
+		label : 'Question',
 	});
 
 	out.answerTicks = 0;		// Seconds left for the team to answer
@@ -205,7 +206,7 @@ export default () => {
 
 		}
 
-		game.categoryTeam = team.color;
+		game.setCategoryPickingTeam(team);
 		Game.ui.toggleQuestionActive(team);	// Colorizes the answer so we know who got the right answer
 		this.updateControls();
 

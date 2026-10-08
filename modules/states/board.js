@@ -6,6 +6,9 @@ export default () => {
 	const out = new State({
 		id : 'board', saveable : true,
 	});
+	out.onGetLabel = function(){
+		return 'Round '+(this.game.activeBoard+1);
+	};
 
 	out.addKeyBinding(
 		'Enter', 'Reveal boards',

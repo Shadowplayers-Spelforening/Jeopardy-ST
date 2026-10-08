@@ -5,6 +5,7 @@ export default () => {
 	
 	const out = new State({
 		id : 'dailyDoubleCompleted', saveable : true,
+		label : 'Daily Double!'
 	});
 
 	out.addKeyBinding(

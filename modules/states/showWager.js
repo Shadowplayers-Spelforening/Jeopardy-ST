@@ -5,6 +5,7 @@ export default () => {
 	
 	const out = new State({
 		id : 'showWager', saveable : true,
+		label : 'Wager',
 	});
 
 	out.addKeyBinding(

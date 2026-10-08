@@ -7,6 +7,7 @@ export default () => {
 	
 	const out = new State({
 		id : 'presentingFinalQuestion', saveable : true,
+		label : 'Final Question',
 	});
 
 	out.addKeyBinding(

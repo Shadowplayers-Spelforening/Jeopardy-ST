@@ -6,6 +6,7 @@ export default () => {
 	
 	const out = new State({
 		id : 'scoreboard',  saveable : true,
+		label : 'Final Score',
 	});
 
 	out.onStateEntry = async function(){

@@ -108,12 +108,11 @@ export default class UI{
 	renderTitle(){
 
 		this.title.innerText = this.game.name;
+		const state = this.game.getState();
+		if( !state )
+			return;
 
-		let stateName = 'Round '+(this.game.activeBoard+1);
-		if( this.game.stage === Game.Stage.DailyDouble )
-			stateName = 'Daily Double!';
-		if( this.game.stage === Game.Stage.Final )
-			stateName = 'Final Round!';
+		let stateName = state.execGetLabel();
 
 		this.gameState.innerText = stateName;
 
@@ -126,7 +125,11 @@ export default class UI{
 		let numConnected = 0;
 
 		let pickingTeam = game.getCategoryPickingTeam();
-		if( game.stage !== Game.Stage.Board )
+		const state = game.getState();
+		if( !state )
+			return;
+
+		if( state.id !== "board" )
 			pickingTeam = null;
 
 		const teams = this.teams.childNodes;

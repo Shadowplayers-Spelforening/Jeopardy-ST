@@ -1,8 +1,2 @@
-- Add a queue to Serial so you don't have to await all the time
-
-[Viewer]
-- Final question
-- Daily double should show wager
-
 Later:
 - Configure game settings

@@ -5,6 +5,7 @@ export default () => {
 	
 	const out = new State({
 		id : 'presentingCategories', saveable : true,
+		label : 'Game Categories',
 	});
 
 	out.addKeyBinding(
@@ -15,7 +16,10 @@ export default () => {
 			this.game.presentedCategories.add(unpresented[0].id);
 			unpresented.shift();
 			if( !unpresented.length ){
+				
+				this.game.pickRandomFirstTeam();
 				this.game.setState('board');
+				
 			}
 			else{
 				this.game.setState(this.id);

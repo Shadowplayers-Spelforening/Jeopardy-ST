@@ -194,7 +194,7 @@ export default class Game extends Autoloader{
 	states = null;						// Sates loaded from /modules/states. Unique to the game.
 	lastSaveableState = 'board';		// Load this state on game start
 
-	categoryTeam = 0;					// Team that's picking category. This is updated on question correct.
+	categoryTeam = 0;					// Color of Team that's picking category. This is updated on question correct.
 	minWager = 2000;					// Minimum max wager you can pick on finale or daily double
 	
 	#saveTimer = null;
@@ -202,7 +202,7 @@ export default class Game extends Autoloader{
 	activeQuestion = '';				// ID - Used in multiple states, so it goes here
 	activeQuestionType = Question.Type.Regular;	// Used in multiple states
 	lastAnswerCorrect = false;			// Used for wagering
-	answeringTeam = -1;					// (-1 = none) Use getAnsweringTeam(). Used by multiple states
+	answeringTeam = -1;					// Color. (-1 = none) Use getAnsweringTeam(). Used by multiple states
 
 
 	teams = [
@@ -232,7 +232,6 @@ export default class Game extends Autoloader{
 			boards : Board.dumpThese(this.boards),
 			finalQuestion : this.finalQuestion.dump(),
 			finalQuestionCategory : this.finalQuestionCategory,
-			id : this.id,
 			dailyDoubles : Array.from(this.dailyDoubles),
 			completedQuestions : Array.from(this.completedQuestions),
 			presentedCategories : Array.from(this.presentedCategories),
@@ -242,6 +241,14 @@ export default class Game extends Autoloader{
 			categoryTeam : this.categoryTeam,
 			stateData,
 			lastSaveableState : this.lastSaveableState,
+			answeringTeam : this.answeringTeam,
+			activeQuestion : this.activeQuestion,
+			activeQuestionType : this.activeQuestionType,
+			lastAnswerCorrect : this.lastAnswerCorrect,
+			minWager : this.minWager,
+			answerTime : this.answerTime,
+			questionTime : this.questionTime,
+
 		};
 
 		return out;
@@ -326,22 +333,17 @@ export default class Game extends Autoloader{
 		this.dailyDoubles = new Set();
 		this.completedQuestions = new Set();
 		this.presentedCategories = new Set();
-		const viableStartTeams = [];
 		for( let team of this.teams ){
 
 			team.reset();
+			team.active = false;
 			team.setDisplayMode(Team.Displaymode.Score);
-			if( team.active )
-				viableStartTeams.push(team.color);
 
 		}
 
 		for( let board of this.boards ){
 			board.resetPresented();
 		}
-
-		if( viableStartTeams.length > 0 )
-			this.categoryTeam = Game.randElem(viableStartTeams);
 
 		if( this.nrDailyDoubles > 0 ){
 
@@ -359,6 +361,7 @@ export default class Game extends Autoloader{
 		this.draw(true);
 		this.save();
 		this.setState("board");
+		this.refreshConnectedBuzzers();
 
 	}
 
@@ -449,7 +452,7 @@ export default class Game extends Autoloader{
 		if( !state )
 			return;
 
-		return state.onKeyPress(key);
+		state.onKeyPress(key);
 
 	}
 
@@ -551,6 +554,13 @@ export default class Game extends Autoloader{
 
 	}
 
+	// expects a Team object
+	setCategoryPickingTeam( team ){
+
+		this.categoryTeam = team.color;
+
+	}
+
 	getTeamsThatCanAnswer(){
 
 		let out = [];
@@ -563,6 +573,17 @@ export default class Game extends Autoloader{
 		return out;
 
 	}
+
+	pickRandomFirstTeam(){
+
+		const activeTeams = this.teams.filter(team => team.active);
+		const selected = activeTeams[Math.floor(Math.random() * activeTeams.length)];
+		this.setCategoryPickingTeam(selected);
+				
+	}
+
+
+
 
 	
 
@@ -678,6 +699,10 @@ export default class Game extends Autoloader{
 		
 		return Promise.all(promises);
 
+	}
+
+	refreshConnectedBuzzers(){
+		return Game.Serial.taskGetConnected();
 	}
 
 
