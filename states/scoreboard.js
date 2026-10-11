@@ -1,5 +1,5 @@
-import Game from "../Game.js";
-import State from "../State.js";
+import Game from "../modules/Game.js";
+import State from "../modules/State.js";
 
 // Build a state. Link it to the game via State.Prototypes
 export default () => {

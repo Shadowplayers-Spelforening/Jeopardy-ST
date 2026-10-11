@@ -1,6 +1,6 @@
-import Question from "../Question.js";
-import State from "../State.js";
-import Team from "../Team.js";
+import Question from "../modules/Question.js";
+import State from "../modules/State.js";
+import Team from "../modules/Team.js";
 
 // Build a state. Link it to the game via State.Prototypes
 export default () => {

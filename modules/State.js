@@ -20,7 +20,7 @@ export default class State extends Autoloader {
 	static async begin(){
 
 		for( const id in this.Prototypes ){
-			this.Prototypes[id] = import('./states/'+id+'.js');
+			this.Prototypes[id] = import('../states/'+id+'.js');
 		}
 
 		// Loads everything async
