@@ -206,6 +206,8 @@ export default class UI{
 			colDiv.append(div);
 
 			const span = document.createElement('span');
+			span.style.overflowWrap = 'normal';
+
 			div.append(span);
 			span._resize = () => {
 				const parent = span.parentElement;
@@ -213,19 +215,21 @@ export default class UI{
 					return;
 
 				requestAnimationFrame(() => {
-
 					const vmin = Math.min(window.innerWidth, window.innerHeight);
 					const bounds = parent.getBoundingClientRect();
-					const maxWidth = Math.max(bounds.width * 0.9, 1);
+					const maxWidth = Math.max(bounds.width * 0.95, 1);
 					const maxHeight = Math.max(bounds.height * 0.9, 1);
 					const fontSize = parseFloat(getComputedStyle(span).fontSize) || 24;
 
+					span.style.width = `${maxWidth}px`;
+					span.style.maxWidth = `${maxWidth}px`;
 					let min = 8;
-					let max = 0.03*vmin;
+					let max = 0.03 * vmin;
 					let best = fontSize;
 
 					for( let i = 0; i < 12; ++i ){
-						const mid = (min + max) / 2;
+
+						const mid = (min + max) / 2 * 0.95;
 						span.style.fontSize = `${mid}px`;
 						const fits = span.scrollWidth <= maxWidth && span.scrollHeight <= maxHeight;
 						if( fits ){
