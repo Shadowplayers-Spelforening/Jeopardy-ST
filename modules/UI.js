@@ -59,7 +59,6 @@ export default class UI{
 	}
 
 	setGame( game ){
-		console.log("UI game is now", game);
 		this.game = game;
 		//this.showCategoryBrowser();
 	}
@@ -744,7 +743,6 @@ export default class UI{
 		tr.append(th);
 
 		const categories = await Game.dbGetAllCategories();
-		console.log(categories);
 		for( let category of categories ){
 
 			let tr = document.createElement('tr');
@@ -975,7 +973,6 @@ export default class UI{
 
 	setControls(...controls){
 
-		console.log("Setting controls", controls);
 		let elements = [];
 		for( let i = 0; i < controls.length; ++i ){
 			const li = document.createElement('li');

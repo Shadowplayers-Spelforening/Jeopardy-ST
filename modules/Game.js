@@ -608,7 +608,6 @@ export default class Game extends Autoloader{
 
 	updateBuzzer( team ){
 
-		console.log("Updating buzzer", team.color, team.connected, team.buzzerEnabled);
 		if( !team.connected )
 			return false;
 		return Game.Serial.taskToggleButton(team.color, team.buzzerEnabled);
@@ -634,8 +633,6 @@ export default class Game extends Autoloader{
 	}
 
 	updateDisplay( team ){
-
-		console.log(team, team.displayMode, team.connected);
 
 		if( !team.connected )
 			return;
