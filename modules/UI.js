@@ -208,17 +208,46 @@ export default class UI{
 			const span = document.createElement('span');
 			div.append(span);
 			span._resize = () => {
+				const parent = span.parentElement;
+				if( !parent )
+					return;
 
-				const vmin = Math.min(window.innerWidth, window.innerHeight);
-				const size = span.getBoundingClientRect().height;
+				requestAnimationFrame(() => {
 
-				const targetPerc = 0.13;	// Tied to #categories > div.category > div - Equal to 100th of vmin
-				const defaultFontSize = 2.5;	// Tied to body font size
-				const perc = targetPerc / Math.max(targetPerc, size / vmin);
-				const newSize = defaultFontSize * perc;
-				span.style.fontSize = `${newSize}vmin`;
+					const vmin = Math.min(window.innerWidth, window.innerHeight);
+					const bounds = parent.getBoundingClientRect();
+					const maxWidth = Math.max(bounds.width * 0.9, 1);
+					const maxHeight = Math.max(bounds.height * 0.9, 1);
+					const fontSize = parseFloat(getComputedStyle(span).fontSize) || 24;
 
+					let min = 8;
+					let max = 0.03*vmin;
+					let best = fontSize;
+
+					for( let i = 0; i < 12; ++i ){
+						const mid = (min + max) / 2;
+						span.style.fontSize = `${mid}px`;
+						const fits = span.scrollWidth <= maxWidth && span.scrollHeight <= maxHeight;
+						if( fits ){
+							best = mid;
+							min = mid;
+						}
+						else{
+							max = mid;
+						}
+					}
+
+					span.style.fontSize = `${best}px`;
+				});
 			};
+			if( 'ResizeObserver' in window ){
+				const resizeObserver = new ResizeObserver(() => {
+					span._resize();
+				});
+				resizeObserver.observe(div);
+				span._resizeObserver = resizeObserver;
+			}
+			window.addEventListener('resize', span._resize, { passive: true });
 			span.oninput = () => {
 
 				clearTimeout(span._save);
@@ -232,6 +261,8 @@ export default class UI{
 			titleSpan = span;
 
 		}
+		else
+			titleSpan = colDiv.childNodes[0].childNodes[0];
 
 		const span = colDiv.childNodes[0].childNodes[0];
 		span.innerText = this.game.presentedCategories.has(category.id) || editMode ? category.name : '???';
@@ -280,9 +311,11 @@ export default class UI{
 		}
 
 		if( titleSpan ){
+
 			setTimeout(() => {
 				titleSpan._resize();
 			}, 10);
+
 		}
 
 	}
@@ -596,6 +629,20 @@ export default class UI{
 			});
 			td.append(ex);
 
+			let del = document.createElement('input');
+			del.type = 'button';
+			del.value = 'Delete';
+			del.addEventListener('click', async (event) => {
+				
+				if( !confirm("Really delete this game?") )
+					return;
+
+				await Game.dbDeleteGame(game.id);
+				this.showGameBrowser();
+
+			});
+			td.append(del);
+
 			tr.append(td);
 
 		}
@@ -629,10 +676,11 @@ export default class UI{
 		form.addEventListener('submit', async (event) => {
 
 			event.preventDefault();
-			const name = input.value.trim();
+			const name = input.value.trim().toUpperCase();
 			if( !name )
 				return;
 			await Game.dbCreateCategory(name);
+			this.showCategoryBrowser();
 			
 		});
 

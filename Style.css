@@ -231,7 +231,7 @@ table.listing tr:nth-child(2n) td{
 	background-color: rgba(0,0,0,.25);
 }
 table.listing tr.active{
-	opacity: 0.5;
+	opacity: 0.25;
 }
 
 
@@ -273,8 +273,8 @@ table.listing tr.active{
 }
 #categories > div.category > div.title{
 	background:#567;
-	font-style: italic;
 	font-size:2.5vmin;
+	text-transform: uppercase;
 }
 #categories > div.category > div{
 	width: 13vmin;

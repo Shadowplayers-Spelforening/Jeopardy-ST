@@ -72,7 +72,8 @@ export default () => {
 
 		this.startAnswerInterval();
 
-		Game.ui.toggleQuestion(game.getActiveQuestion(), false);
+		const question = game.getActiveQuestion();
+		Game.ui.toggleQuestion(question, false);
 
 		// Immediately start the team answer timer
 		if( game.activeQuestionType !== Question.Type.Regular )
@@ -83,6 +84,8 @@ export default () => {
 			game.setAllDisplaysKeyboard();
 			
 		}
+
+		console.log("[HOST] The answer is: ", question.answer);
 			
 
 	};
