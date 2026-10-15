@@ -252,21 +252,22 @@ export default class UI{
 				span._resizeObserver = resizeObserver;
 			}
 			window.addEventListener('resize', span._resize, { passive: true });
-			span.oninput = () => {
-
-				clearTimeout(span._save);
-				span._save = setTimeout(() => {
-					category.name = span.innerText.trim() || '???';
-					Game.dbSaveCategory(category);
-					span._resize();
-				}, 500);
-
-			};
 			titleSpan = span;
 
 		}
 		else
 			titleSpan = colDiv.childNodes[0].childNodes[0];
+
+		titleSpan.oninput = () => {
+
+			clearTimeout(span._save);
+			span._save = setTimeout(() => {
+				category.name = span.innerText.trim() || '???';
+				Game.dbSaveCategory(category);
+				span._resize();
+			}, 500);
+
+		};
 
 		const span = colDiv.childNodes[0].childNodes[0];
 		span.innerText = this.game.presentedCategories.has(category.id) || editMode ? category.name : '???';
@@ -314,13 +315,7 @@ export default class UI{
 
 		}
 
-		if( titleSpan ){
-
-			setTimeout(() => {
-				titleSpan._resize();
-			}, 10);
-
-		}
+		titleSpan._resize();
 
 	}
 
@@ -749,6 +744,7 @@ export default class UI{
 		tr.append(th);
 
 		const categories = await Game.dbGetAllCategories();
+		console.log(categories);
 		for( let category of categories ){
 
 			let tr = document.createElement('tr');

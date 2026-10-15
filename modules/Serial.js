@@ -31,6 +31,8 @@ export default class Serial{
 
 	}
 
+	static DEBUG = false;
+
 	keepReading = true;
 	reader = null;
 	connectRes = null;
@@ -49,10 +51,10 @@ export default class Serial{
 	constructor(){
 		
 		navigator.serial.addEventListener("connect", e => {
-			console.log("Connected", e);
+			console.debug("Connected", e);
 		});
 		navigator.serial.addEventListener("disconnect", e => {
-			console.log("Disconnected", e);
+			console.debug("Disconnected", e);
 		});
 		
 		clearInterval(this.portScan);
@@ -89,7 +91,7 @@ export default class Serial{
 			try{
 				this.serialAbortController.abort();
 			}catch( err ){
-				console.log(err);
+				console.warn(err);
 			}
 			this.serialAbortController = null;
 		}
@@ -97,17 +99,17 @@ export default class Serial{
 		if( this.reader ){
 			try{
 				await this.reader.cancel();
-			}catch(e){ console.log(e); }
+			}catch(e){ console.warn(e); }
 			try{
 				this.reader.releaseLock();
-			}catch(e){ console.log(e); }
+			}catch(e){ console.warn(e); }
 			this.reader = null;
 		}
 
 		if( this.writer ){
 			try{
 				this.writer.releaseLock();
-			}catch(e){ console.log(e); }
+			}catch(e){ console.warn(e); }
 			this.writer = null;
 		}
 
@@ -119,7 +121,7 @@ export default class Serial{
 		if( this.port ){
 			try{
 				await this.port.close();
-			}catch(e){ console.log(e); }
+			}catch(e){ console.warn(e); }
 			this.port = null;
 
 		}
@@ -220,7 +222,8 @@ export default class Serial{
 				clearTimeout(this.serialTimeout);
 				this.buffer += value;
 				this.serialTimeout = setTimeout(() => {
-					console.log("[SERIAL] <<< ", this.buffer);
+					if( Serial.DEBUG )
+						console.debug("[SERIAL] <<< ", this.buffer);
 					this.handleSerialBuffer();
 				}, 10);
 				
@@ -257,7 +260,7 @@ export default class Serial{
 
 			this.connectTimeout = setTimeout(() => {
 				this.connectRes = null;
-				console.log("[Serial] Skipping device, timeout hit");
+				console.warn("[Serial] Skipping device, timeout hit");
 				res(false);
 			}, 3000);
 
@@ -277,9 +280,9 @@ export default class Serial{
 			const port = await navigator.serial.requestPort({
 				filters : Serial.VENDOR_IDS.map(id => { return { usbVendorId : id }; })
 			});
-			console.log("User selected a port:", port);
+			console.debug("User selected a port:", port);
 			const info = port.getInfo();
-			console.log(`Vendor ID: ${info.usbVendorId}, Product ID: ${info.usbProductId}`);
+			console.debug(`Vendor ID: ${info.usbVendorId}, Product ID: ${info.usbProductId}`);
 			await this.tryConnectPort(port);
 
 		}catch( error ){
@@ -288,11 +291,11 @@ export default class Serial{
 
 	}
 
-	onConnect(){ console.log("[Serial] Hub connected!"); }
-	onRemoteButton(color){ console.log("Button pressed on color", color); }
-	onRemoteText(color, text){ console.log("Text received on color", color, text); }
-	onRemoteConnect(color){ console.log("Connected to color", color); }
-	onRemoteDisconnect(color){ console.log("Disconnected from color", color); }
+	onConnect(){ console.debug("[Serial] Hub connected!"); }
+	onRemoteButton(color){ console.debug("Button pressed on color", color); }
+	onRemoteText(color, text){ console.debug("Text received on color", color, text); }
+	onRemoteConnect(color){ console.debug("Connected to color", color); }
+	onRemoteDisconnect(color){ console.debug("Disconnected from color", color); }
 
 
 	// returns the task's promise
@@ -310,7 +313,6 @@ export default class Serial{
 
 	async advanceQueue(){
 
-		console.log("Queue", this.queuedTasks);
 		while( this.queuedTasks.length ){
 			
 			if( !this.port || !this.port.writable ){
@@ -320,12 +322,12 @@ export default class Serial{
 			}
 
 			const nextTask = this.queuedTasks[0];
-			console.log("Running task", nextTask);
 
 			let message = Serial.PREFIX + JSON.stringify([nextTask.task, ...nextTask.args]) + Serial.SUFFIX;
 			const encoded = new TextEncoder().encode(message);
 
-			console.log("[SERIAL] >>> ", message);
+			if( Serial.DEBUG )
+				console.debug("[SERIAL] >>> ", message);
 			
 			this.writer = this.port.writable.getWriter();
 			

@@ -347,13 +347,14 @@ export default class Game extends Autoloader{
 
 		if( this.nrDailyDoubles > 0 ){
 
-			// Todo: Re-enable
-			//const viableDailyDoubles = this.getAllQuestionIds();
-			//Game.shuffle(viableDailyDoubles);
-			//this.dailyDoubles = new Set(viableDailyDoubles.slice(0, this.nrDailyDoubles));
+
+			const viableDailyDoubles = this.getAllQuestionIds();
+			Game.shuffle(viableDailyDoubles);
+			this.dailyDoubles = new Set(viableDailyDoubles.slice(0, this.nrDailyDoubles));
+			/*
 			this.dailyDoubles = new Set();
 			this.dailyDoubles.add(this.boards[0].categories[0].questions[0].id); // testing
-
+			*/
 		}
 
 		this.setAllDisplaysScore();
