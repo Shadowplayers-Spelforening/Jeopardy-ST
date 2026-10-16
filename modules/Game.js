@@ -312,6 +312,7 @@ export default class Game extends Autoloader{
 		Game.Serial.onRemoteText = this.onRemoteText.bind(this);
 		Game.Serial.onRemoteConnect = (color) => this.onSerialRemoteConnect(color, true);
 		Game.Serial.onRemoteDisconnect = (color) => this.onSerialRemoteConnect(color, false);
+		this.refreshConnectedBuzzers();
 
 	}
 
