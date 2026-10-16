@@ -66,10 +66,8 @@ export default () => {
 
 		this.updateControls();
 
-		this.activateBuzzersTimeout = setTimeout(() => {
-			game.enableAllBuzzers();
-		}, 1000);
 
+		
 		this.startAnswerInterval();
 
 		const question = game.getActiveQuestion();
@@ -78,7 +76,11 @@ export default () => {
 		// Immediately start the team answer timer
 		if( game.activeQuestionType !== Question.Type.Regular )
 			this.activateActiveTeamAnswerCountdown();
-
+		else{
+			this.activateBuzzersTimeout = setTimeout(() => {
+				game.enableAllBuzzers();
+			}, 1000);
+		}
 		if( this.isFinalQuestion() ){
 
 			game.setAllDisplaysKeyboard();
