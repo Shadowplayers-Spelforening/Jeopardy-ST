@@ -19,6 +19,7 @@ export default class Team extends Autoloader{
 	name = "";
 	connected = false;
 	buzzerEnabled = false;
+	answered = false;			// used to track if team has answered a normal question, resets on normal question asked
 	displayMode = Team.Displaymode.Blank;
 
 

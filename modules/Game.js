@@ -563,12 +563,19 @@ export default class Game extends Autoloader{
 
 	}
 
+	resetTeamsAnswered(){
+		
+		for( let team of this.teams )
+			team.answered = false;
+
+	}
+
 	getTeamsThatCanAnswer(){
 
 		let out = [];
 		for( let team of this.teams ){
 			
-			if( team.buzzerEnabled && team.active )
+			if( !team.answered && team.active )
 				out.push(team);
 			
 		}

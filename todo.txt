@@ -1,2 +1,4 @@
 Later:
 - Configure game settings
+
+- Final question skipped a team

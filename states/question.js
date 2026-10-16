@@ -42,6 +42,15 @@ export default () => {
 	);
 
 	// Correct
+	out.addKeyBinding('Enter', 'Skip Question',
+		function(){
+			this.stopAnswerInterval();
+			this.onQuestionTimedOut();
+		},
+		function(){ return this.questionTicks && !this.game.getAnsweringTeam() && this.game.activeQuestionType === Question.Type.Regular; },
+	);
+
+	// Correct
 	out.addKeyBinding('Enter', 'Player Answers',
 		function(){
 			this.game.setState('finalQuestionShowTeam');
@@ -49,7 +58,7 @@ export default () => {
 		function(){ 
 			return (
 				this.isFinalQuestion() &&
-				this.allTeamsHaveSuppliedText() || !this.answerTicks
+				(this.allTeamsHaveSuppliedText() || !this.answerTicks)
 			); 
 		},
 	);
@@ -66,7 +75,7 @@ export default () => {
 
 		this.updateControls();
 
-
+		game.resetTeamsAnswered();
 		
 		this.startAnswerInterval();
 
@@ -160,6 +169,8 @@ export default () => {
 
 				if( !(--this.answerTicks) )
 					this.onAnswerTimedOut();
+				else
+					this.updateControls();
 				Game.ui.setQuestionTimeLeft(this.answerTicks, this.getAnswerTime());
 
 			}
@@ -168,8 +179,12 @@ export default () => {
 				
 				if( !(--this.questionTicks) )
 					this.onQuestionTimedOut();
-				
+				else
+					this.updateControls();
+
 			}
+			
+
 			
 
 		}, 1000);
@@ -238,6 +253,7 @@ export default () => {
 		}
 		else{
 
+			team.answered = true;		// Used only in normal questions
 			team.score -= question._value;
 			game.onTeamScoreChanged(team);
 			game.setAnsweringTeam(false);
@@ -248,6 +264,8 @@ export default () => {
 
 				this.startAnswerInterval();
 				Game.ui.toggleQuestionActive(false);
+				for( let team of remainingTeams )
+					team.buzzerEnabled = true;
 				game.updateBuzzers();
 
 			}
@@ -257,13 +275,14 @@ export default () => {
 			}
 
 		}
-		//this.updateControls();
+		this.updateControls();
 
 	};
 
 	// No player buzzed in, and we ran out of time
 	out.onQuestionTimedOut = function(){
 
+		this.questionTicks = this.answerTicks = 0;
 		this.onResult();
 		this.game.setActiveQuestionCompleted();
 		this.updateControls();
