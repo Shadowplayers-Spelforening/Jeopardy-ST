@@ -76,7 +76,7 @@ export default () => {
 		if( 
 			!team.lastNumber &&
 			amount > 0 &&
-			(amount <= game.minWager || amount <= answeringTeam.score)
+			(amount <= game.minWager || amount <= team.score)
 		){
 
 			team.buzzerEnabled = false;

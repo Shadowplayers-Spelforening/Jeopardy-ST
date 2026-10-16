@@ -72,7 +72,6 @@ div{
 	height:min(75vmin, 90vh);
 	max-width: calc(100vw - 6vmin);
 	max-height: calc(100vh - 6vmin);
-	overflow:hidden;
 	display:flex;
 	justify-content: center;
 	align-items: center;

@@ -57,7 +57,7 @@ export default () => {
 	};
 	out.onStateExit = async function(){
 		const game = this.game;
-
+		Game.ui.toggleQuestion(false);
 	};
 
 	return out;

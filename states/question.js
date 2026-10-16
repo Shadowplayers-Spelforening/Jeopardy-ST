@@ -160,7 +160,6 @@ export default () => {
 
 				if( !(--this.answerTicks) )
 					this.onAnswerTimedOut();
-				
 				Game.ui.setQuestionTimeLeft(this.answerTicks, this.getAnswerTime());
 
 			}
