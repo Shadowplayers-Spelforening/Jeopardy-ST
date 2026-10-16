@@ -131,6 +131,8 @@ export default class Serial{
 
 	// When connected and received a ping reply
 	onConnectionEstablished(){
+
+		console.debug("[Serial] HUB Located!");
 		const res = this.connectRes;
 		this.connectRes = null;
 		clearInterval(this.portScan);
@@ -138,6 +140,7 @@ export default class Serial{
 		res(true);
 		this.onConnect();
 		this.taskGetConnected();
+
 	}
 
 	handleJsonCommand( json ){
@@ -253,6 +256,7 @@ export default class Serial{
 			console.error("[Serial] Start reading error", err);
 		});
 
+		console.debug("[Serial] Serial connection opened");
 
 		return new Promise(res => {
 
