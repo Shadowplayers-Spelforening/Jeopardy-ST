@@ -52,7 +52,7 @@ export default class Category extends Autoloader{
 
 		let mul = 1.0 + boardIndex;
 		for( let i = 0; i < this.questions.length; ++i )
-			this.questions[i]._value = 100 * (i + 1) * mul;
+			this.questions[i]._value = 200 * (i + 1) * mul;
 
 	}
 
