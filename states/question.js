@@ -331,7 +331,7 @@ export default () => {
 		if( !team )
 			return;
 
-		team.lastText = String(text).trim();
+		team.lastText = String(text).trim() || '...';
 
 		this.updateControls();
 		if( this.allTeamsHaveSuppliedText() ){
