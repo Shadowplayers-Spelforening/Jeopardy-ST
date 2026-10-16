@@ -68,8 +68,11 @@ div{
 	text-transform: uppercase;
 	color: #FFF;
 	background: linear-gradient(to bottom,  #777 0%,#444 100%);
-	width:75vmin; height: 75vmin;
-	overflow:visible;
+	width:min(75vmin, 90vw);
+	height:min(75vmin, 90vh);
+	max-width: calc(100vw - 6vmin);
+	max-height: calc(100vh - 6vmin);
+	overflow:hidden;
 	display:flex;
 	justify-content: center;
 	align-items: center;

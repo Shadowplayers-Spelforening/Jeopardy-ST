@@ -904,23 +904,24 @@ export default class UI{
 			return;
 
 		const parent = container;
-		const width = Math.max(parent.clientWidth * 0.9, 1);
-		const height = Math.max(parent.clientHeight * 0.9, 1);
-		const vmin = Math.min(window.innerWidth, window.innerHeight);
-		const upper = Math.min(max, vmin * 0.18);
+		const width = Math.max(parent.clientWidth || parseFloat(getComputedStyle(parent).width) || 1, 1);
+		const height = Math.max(parent.clientHeight || parseFloat(getComputedStyle(parent).height) || 1, 1);
+		const upper = Math.min(max, Math.max(width, height) * 0.35);
 		let low = min;
 		let high = upper;
 		let best = parseFloat(getComputedStyle(element).fontSize) || upper;
 
-		element.style.width = `${width}px`;
-		element.style.maxWidth = `${width}px`;
-		element.style.lineHeight = '1.1';
+		element.style.display = 'block';
+		element.style.width = `${Math.max(width - 24, 1)}px`;
+		element.style.maxWidth = `${Math.max(width - 24, 1)}px`;
+		element.style.maxHeight = `${Math.max(height - 24, 1)}px`;
+		element.style.hyphens = 'auto';
 
 		requestAnimationFrame(() => {
 			for( let i = 0; i < 14; ++i ){
 				const mid = (low + high) / 2;
 				element.style.fontSize = `${mid}px`;
-				const fits = element.scrollWidth <= width && element.scrollHeight <= height;
+				const fits = element.scrollWidth <= Math.max(width - 24, 1) && element.scrollHeight <= Math.max(height - 24, 1);
 				if( fits ){
 					best = mid;
 					low = mid;
