@@ -899,6 +899,40 @@ export default class UI{
 	}
 
 
+	fitText( element, container, min = 12, max = 240 ){
+		if( !(element instanceof HTMLElement) || !(container instanceof HTMLElement) )
+			return;
+
+		const parent = container;
+		const width = Math.max(parent.clientWidth * 0.9, 1);
+		const height = Math.max(parent.clientHeight * 0.9, 1);
+		const vmin = Math.min(window.innerWidth, window.innerHeight);
+		const upper = Math.min(max, vmin * 0.18);
+		let low = min;
+		let high = upper;
+		let best = parseFloat(getComputedStyle(element).fontSize) || upper;
+
+		element.style.width = `${width}px`;
+		element.style.maxWidth = `${width}px`;
+		element.style.lineHeight = '1.1';
+
+		requestAnimationFrame(() => {
+			for( let i = 0; i < 14; ++i ){
+				const mid = (low + high) / 2;
+				element.style.fontSize = `${mid}px`;
+				const fits = element.scrollWidth <= width && element.scrollHeight <= height;
+				if( fits ){
+					best = mid;
+					low = mid;
+				}
+				else{
+					high = mid;
+				}
+			}
+			element.style.fontSize = `${best}px`;
+		});
+	}
+
 	// Show the question in game
 	toggleQuestion( question, answered = false ){
 		
@@ -922,6 +956,8 @@ export default class UI{
 		this.questionContent.style.top = top/window.innerHeight * 100 + '%';
 		
 		this.questionText.innerText = answered ? question.answer : question.question;
+		this.questionText.style.fontSize = '';
+		this.fitText(this.questionText, this.questionContent, 18, 320);
 		this.toggleQuestionActive(false);
 
 		setTimeout(() => {
