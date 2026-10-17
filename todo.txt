@@ -2,3 +2,6 @@ Later:
 - Configure game settings
 
 - Final question skipped a team
+- Namn resettade när visade kategorier
+- Daily double lägger till när man väljer rätt
+- Poäng ska ändras i buzzer när man redigerar manuellt
