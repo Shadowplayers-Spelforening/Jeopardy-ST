@@ -8,6 +8,7 @@ import Dexie from '../lib/dexie.min.js';
 import Category from "./Category.js";
 import UI from "./UI.js";
 import State from "./State.js";
+import Audio from "./Audio.js";
 
 
 
@@ -28,10 +29,20 @@ export default class Game extends Autoloader{
 		FinalQuestionWager : "FinalQuestionWager",				// Show wager for #answeringTeam
 		FinalScore : "FinalScore",								// Show the final score
 	};
+	static Sounds = {
+		'button' : 'jeopardy_button',
+		'category' : 'jeopardy_category',
+		'correct' : 'jeopardy_correct',
+		'dailydouble' : 'jeopardy_dailydouble',
+		'error' : 'jeopardy_error',
+		'score' : 'jeopardy_score',
+		'timeout' : 'jeopardy_timeout',
+	};
 
 	static game;
 	static ui;
 	static db;
+	static audio;
 	static async begin(){
 
 		this.db = new Dexie("jeopardy");
@@ -42,7 +53,14 @@ export default class Game extends Autoloader{
 		this.ui = new UI();
 		this.draw(true);
 
-		await State.begin();
+		this.audio = new Audio();
+
+		const promises = [
+			State.begin(),
+			this.audio.registerSounds(this.Sounds)
+		];
+
+		await Promise.all(promises);
 
 		if( !await this.loadGame(localStorage.activeGame) )
 			this.newGame("New Game");
@@ -386,6 +404,14 @@ export default class Game extends Autoloader{
 	}
 
 
+	/* SOUND HOTKEYS */
+	soundButton(){ Game.audio.playSound("button"); }
+	soundCategory(){ Game.audio.playSound("category"); }
+	soundCorrect(){ Game.audio.playSound("correct"); }
+	soundDailydouble(){ Game.audio.playSound("dailydouble"); }
+	soundError(){ Game.audio.playSound("error"); }
+	soundScore(){ Game.audio.playSound("score"); }
+	soundTimeout(){ Game.audio.playSound("timeout"); }
 
 
 	/* GAMEPLAY */
@@ -559,6 +585,9 @@ export default class Game extends Autoloader{
 	// expects a Team object
 	setCategoryPickingTeam( team ){
 
+		if( !team )
+			return;
+		
 		this.categoryTeam = team.color;
 
 	}

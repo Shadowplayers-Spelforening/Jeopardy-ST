@@ -12,6 +12,7 @@ export default () => {
 	out.onStateEntry = async function(){
 		
 		const game = this.game;
+		game.soundScore();
 		Game.ui.toggleScoreBoard(true);
 
 	};

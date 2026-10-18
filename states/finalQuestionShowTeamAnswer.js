@@ -15,6 +15,7 @@ export default () => {
 			const game = this.game;
 			game.lastAnswerCorrect = true;
 			game.setState('showWager');
+			game.soundCorrect();
 			return true;
 
 		},
@@ -27,6 +28,7 @@ export default () => {
 			const game = this.game;
 			game.lastAnswerCorrect = false;
 			game.setState('showWager');
+			game.soundError();
 			return true;
 
 		},

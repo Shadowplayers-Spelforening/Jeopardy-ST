@@ -215,12 +215,16 @@ form{
 
 table.listing{
 	width:100%;
+	font-size:1.5vmin;
+}
+table.listing input{
+	font-size:1.5vmin;
 }
 table.listing td{
 	background-color: rgba(0,0,0,.5);
 	color: #FFF;
 	text-align: left;
-	padding: 0.5vmin;
+	padding: 0.25vmin;
 }
 table.listing td.name{
 	cursor:pointer;

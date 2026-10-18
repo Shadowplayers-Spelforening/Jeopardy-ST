@@ -42,6 +42,8 @@ export default () => {
 		Game.ui.toggleQuestionActive(team);
 		team.setDisplayMode(Team.Displaymode.Numpad);
 		game.updateDisplays();
+
+		game.soundDailydouble();
 		
 
 	};

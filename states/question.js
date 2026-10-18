@@ -136,6 +136,7 @@ export default () => {
 			game.disableAllBuzzers();
 			game.setAnsweringTeam(team);
 			this.activateActiveTeamAnswerCountdown();
+			game.soundButton();
 
 		}
 
@@ -214,6 +215,7 @@ export default () => {
 
 		game.lastAnswerCorrect = true;
 		game.setActiveQuestionCompleted();
+		game.soundCorrect();
 
 		if( game.activeQuestionType === Question.Type.DailyDouble )
 			game.setState('dailyDoubleCompleted');
@@ -241,6 +243,7 @@ export default () => {
 		if( !question || !team )
 			return;
 
+		game.soundError();
 		this.lastAnswerCorrect = false;
 		team.buzzerEnabled = false;				// Other teams can still answer if it's a normal question
 
@@ -271,7 +274,7 @@ export default () => {
 			}
 			// No teams left
 			else{
-				this.onQuestionTimedOut();
+				this.onQuestionTimedOut( false );
 			}
 
 		}
@@ -280,7 +283,10 @@ export default () => {
 	};
 
 	// No player buzzed in, and we ran out of time
-	out.onQuestionTimedOut = function(){
+	out.onQuestionTimedOut = function( allowSound = true ){
+
+		if( allowSound )
+			this.game.soundTimeout();
 
 		this.questionTicks = this.answerTicks = 0;
 		this.onResult();
@@ -311,6 +317,8 @@ export default () => {
 			}, 5000);
 
 		}
+
+		this.game.soundTimeout();
 
 	};
 

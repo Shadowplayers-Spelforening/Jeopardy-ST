@@ -43,6 +43,7 @@ export default () => {
 		});
 		Game.ui.toggleQuestion(question);
 		game.draw();
+		game.soundCategory();
 
 	};
 	out.onStateExit = async function(){

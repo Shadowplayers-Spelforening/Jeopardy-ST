@@ -145,6 +145,7 @@ export default class UI{
 				this.teams.append(div);
 				const teamName = document.createElement('div');
 				teamName.contentEditable = true;
+				teamName.spellcheck = false;
 				teamName.classList.add('name');
 				teamName.addEventListener('input', () => {
 					team.name = teamName.innerText.trim();
@@ -153,6 +154,7 @@ export default class UI{
 				div.append(teamName);
 				const teamScore = document.createElement('div');
 				teamScore.contentEditable = true;
+				teamScore.spellcheck = false;
 				teamScore.classList.add('score');
 				div.append(teamScore);
 
@@ -271,6 +273,7 @@ export default class UI{
 		const span = colDiv.childNodes[0].childNodes[0];
 		span.innerText = this.game.presentedCategories.has(category.id) || editMode ? category.name : '???';
 		span.contentEditable = editMode;
+		span.spellcheck = false;
 		colDiv.childNodes[0].classList.toggle('hidden', false);
 
 		for( let i = 0; i < questions.length; ++i ){
