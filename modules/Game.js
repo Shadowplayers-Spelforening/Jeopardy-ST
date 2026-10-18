@@ -366,10 +366,17 @@ export default class Game extends Autoloader{
 
 		if( this.nrDailyDoubles > 0 ){
 
+			this.dailyDoubles = new Set();
+			for( let board of this.boards ){
 
-			const viableDailyDoubles = this.getAllQuestionIds();
-			Game.shuffle(viableDailyDoubles);
-			this.dailyDoubles = new Set(viableDailyDoubles.slice(0, this.nrDailyDoubles));
+				let viableDailyDoubles = board.getAllQuestions();
+				Game.shuffle(viableDailyDoubles);
+				viableDailyDoubles.slice(0, this.nrDailyDoubles).map(el => {
+					this.dailyDoubles.add(el.id);
+				});
+				
+			}
+			
 			/*
 			this.dailyDoubles = new Set();
 			this.dailyDoubles.add(this.boards[0].categories[0].questions[0].id); // testing

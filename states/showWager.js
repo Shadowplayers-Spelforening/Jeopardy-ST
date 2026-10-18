@@ -50,6 +50,9 @@ export default () => {
 		
 		if( !game.lastAnswerCorrect )
 			num = -num;
+
+		console.log("lac", game.lastAnswerCorrect);
+
 		team.score += num;
 		game.onTeamScoreChanged(team);
 		game.save();

@@ -244,7 +244,7 @@ export default () => {
 			return;
 
 		game.soundError();
-		this.lastAnswerCorrect = false;
+		game.lastAnswerCorrect = false;
 		team.buzzerEnabled = false;				// Other teams can still answer if it's a normal question
 
 		if( game.activeQuestionType === Question.Type.DailyDouble ){

@@ -1,6 +1,3 @@
 Later:
 - Configure game settings
 
-- Namn resettade när visade kategorier
-- Daily double lägger till när man väljer rätt
-- Poäng ska ändras i buzzer när man redigerar manuellt

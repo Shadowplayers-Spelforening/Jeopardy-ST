@@ -276,6 +276,7 @@ table.listing tr.active{
 #categories{
 	display:flex;
 	margin-top:5vmin;
+	user-select: none;
 }
 #categories > div.category > div.title{
 	background:#567;

@@ -169,11 +169,17 @@ export default class UI{
 			teamScore.addEventListener('input', () => {
 
 				clearTimeout(teamScore._save);
-				let score = parseInt(teamScore.innerText.trim());
-				if( isNaN(score) )
-					return;
-				team.score = score;
-				game.save();
+				teamScore._save = setTimeout(() => {
+					
+					let score = parseInt(teamScore.innerText.trim());
+					if( isNaN(score) )
+						return;
+					team.score = score;
+					game.save();
+					game.updateDisplay(team);
+
+				}, 500);
+				
 
 			});
 			div.classList.toggle('active', team === pickingTeam);
@@ -629,20 +635,6 @@ export default class UI{
 
 			});
 			td.append(ex);
-
-			let del = document.createElement('input');
-			del.type = 'button';
-			del.value = 'Delete';
-			del.addEventListener('click', async (event) => {
-				
-				if( !confirm("Really delete this game?") )
-					return;
-
-				await Game.dbDeleteGame(game.id);
-				this.showGameBrowser();
-
-			});
-			td.append(del);
 
 			tr.append(td);
 
