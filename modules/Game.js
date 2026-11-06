@@ -63,7 +63,7 @@ export default class Game extends Autoloader{
 		await Promise.all(promises);
 
 		if( !await this.loadGame(localStorage.activeGame) )
-			this.newGame("New Game");
+			await this.newGame("New Game");
 
 	}
 

@@ -722,9 +722,13 @@ export default class UI{
 
 
 		// Listing
+		const overflowDiv = document.createElement('div');
+		overflowDiv.classList.add('overflow');
+		elements.push(overflowDiv);
+
 		let listing = document.createElement('table');
 		listing.classList.add('listing');
-		elements.push(listing);
+		overflowDiv.appendChild(listing);
 
 		let tr = document.createElement('tr');
 		listing.append(tr);
@@ -738,6 +742,15 @@ export default class UI{
 		tr.append(th);
 
 		const categories = await Game.dbGetAllCategories();
+		categories.sort((a,b) => {
+			
+			const aActive = game.getCategoryByIDAnyBoard(a.id);
+			const bActive = game.getCategoryByIDAnyBoard(b.id);
+			if( aActive !== bActive )
+				return aActive ? -1 : 1;
+			return a.name.localeCompare(b.name);
+
+		});
 		for( let category of categories ){
 
 			let tr = document.createElement('tr');
